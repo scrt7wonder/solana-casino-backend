@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import { AuthService } from '../services/authService';
-import { RegisterUserDto } from '../types/auth.dto';
+import { IauthUserDto } from '../types/auth.dto';
 
 export class AuthController {
     private authService: AuthService;
@@ -17,7 +17,7 @@ export class AuthController {
         }
 
         try {
-            const userData: RegisterUserDto = req.body;
+            const userData: IauthUserDto = req.body;
             const user = await this.authService.auth(userData);
             return res.status(201).json(user);
         } catch (error) {
