@@ -10,7 +10,7 @@ try {
     process.exit(1);
 }
 
-export const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+export const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
 
 /**
  * Initialize Cors
@@ -22,9 +22,10 @@ export const corsOptionsHttp: cors.CorsOptions = {
     credentials: true,
 }
 
-export const corsOptionsSocket = process.env.SOCKET_ALLOW_HOSTS
+export const corsOptionsSocket = process.env.SOCKET_ALLOW_HOSTS || 'http://localhost:3000'
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const IS_PRODUCTION = NODE_ENV === 'production';
-export const MONGO_URL = process.env.MONGO_URL;
+export const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/solbet';
+export const ALLOW_HOSTS = process.env.ALLOW_HOSTS || "http://localhost:3000";

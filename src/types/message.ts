@@ -2,7 +2,7 @@ import { Document, Types } from "mongoose";
 import { IUser } from "./user";
 
 export interface IMessage extends Document {
-    user_id: Types.ObjectId;
+    user_id: string;
     content: string;
     timestamp: Date;
     room: string;

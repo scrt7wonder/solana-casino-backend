@@ -5,10 +5,17 @@ export enum EChatEvent {
     NEW_MESSAGE = 'new_message'
 }
 
+interface IChatItem {
+    user: string;
+    content: string;
+    avatar: string;
+    time: string;
+}
+
 export interface IChatServerToClientEvents {
     [EChatEvent.JOIN]: (id: string) => void;
     [EChatEvent.MESSAGE]: ({ content, sender }: {
-        content: string,
+        content: string;
         sender: string
     }) => void;
 }
