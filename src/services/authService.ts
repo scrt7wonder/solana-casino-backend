@@ -1,12 +1,8 @@
 import User from '../models/user';
-import jwt from 'jsonwebtoken';
-import { config } from 'dotenv';
-import { IauthUserDto } from '../types/auth.dto';
 import Refferal from "../models/refferal";
-
-config();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/constants';
+import { IauthUserDto } from '../types/auth.dto';
 
 export class AuthService {
     public async auth(userData: IauthUserDto) {

@@ -9,3 +9,11 @@ export interface IHistory extends Document {
     round: number;
     user_id: ObjectId;
 }
+
+export interface IntervalResult {
+    open: number;
+    close: number;
+    high: number;
+    low: number;
+    date: string;
+}
