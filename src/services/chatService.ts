@@ -1,6 +1,8 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import Message from '../models/message';
 import { corsOptionsSocket } from '../config/constants';
+import mongoose from 'mongoose';
+import { EChatEvent } from '../types/socket';
 
 export class ChatService {
     private io: SocketIOServer;
@@ -19,30 +21,31 @@ export class ChatService {
 
     private setupConnection() {
         this.io.on('connection', (socket: Socket) => {
-            let username = '';
+            let id = '';
 
             // Handle join event
-            socket.on('join', async (sender: string) => {
-                username = sender;
-                this.activeUsers.set(username, socket);
+            socket.on(EChatEvent.JOIN, async (sender: string) => {
+                id = sender;
+                this.activeUsers.set(id, socket);
                 this.broadcastUserList();
                 this.sendMessageHistory(socket);
             });
 
-            // Handle new messages
-            socket.on('message', async (data: { content: string, sender: string }) => {
-                const newMessage = new Message({
-                    username: data.sender,
-                    content: data.content,
-                    room: 'public'
-                });
-                await newMessage.save();
-                this.io.emit('new-message', newMessage);
+            socket.on(EChatEvent.MESSAGE, async (data: { content: string, sender: string }) => {
+                const senderObjectId = new mongoose.Types.ObjectId(data.sender);
+                const message = await Message.createMessage(senderObjectId, data.content);
+                const updateNewMsg = {
+                    user: message.user_id.username,
+                    content: message.content,
+                    avatar: message.user_id.avatar,
+                    time: message.timestamp,
+                }
+                this.io.emit(EChatEvent.NEW_MESSAGE, updateNewMsg);
             });
 
             // Handle disconnection
             socket.on('disconnect', () => {
-                this.activeUsers.delete(username);
+                this.activeUsers.delete(id);
                 this.broadcastUserList();
             });
         });
@@ -53,7 +56,7 @@ export class ChatService {
             .sort({ timestamp: -1 })
             .limit(50)
             .lean();
-        socket.emit('message-history', messages.reverse());
+        socket.emit(EChatEvent.MESSAGE_HISTORY, messages.reverse());
     }
 
     private broadcastUserList() {
