@@ -1,12 +1,95 @@
-import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction, TransactionInstruction } from "@solana/web3.js";
-import { claimReward, createGame, fetchWinner, initialize, monitor, setWinner, transferFees } from "../contract/solbet";
-import { adminKP, connection } from "../config/constants";
+import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
+import { claimReward, createGame, depositMonitor, durationState, fetchWinner, initialize, setWinner, transferFees } from "../contract/solbet";
+import { adminKP, connection, teamWallet } from "../config/constants";
+import { Namespace, Server, Socket } from "socket.io";
+import { EGameEvent, ESOCKET_NAMESPACE } from "../types/socket";
+import { IHistory } from "../types/history";
+import History from "../models/history";
 
 export class GameService {
+    public round: number = 0;
+    public duration_state: boolean = false;
+    private isGameInitialized: boolean = false; // Track initialization state
+    private socketServer: Namespace
+
+    constructor(socketServer: Server) {
+        this.socketServer = socketServer.of(ESOCKET_NAMESPACE.game)
+        this.setupConnection();
+    }
+
+    private setupConnection() {
+        this.socketServer.on('connection', (socket: Socket) => {
+            // Initialize game on first connection
+            if (!this.isGameInitialized && this.socketServer.sockets.size === 1) {
+                this.isGameInitialized = true;
+                this.initialGame(adminKP);
+                this.playGame(socket, adminKP, teamWallet)
+            }
+
+            this.sendUpdateRound(socket)
+
+            socket.on(EGameEvent.SAVE_HISTORY, async (data: IHistory) => {
+                console.log("🚀 ~ GameService ~ socket.on ~ data:", data)
+                const { sig, price, type, status, create_at, round, user_id } = data;
+
+                const saveData = {
+                    sig,
+                    price,
+                    type,
+                    status,
+                    create_at,
+                    round,
+                    user_id
+                }
+                const historyData = new History(saveData);
+                historyData.save();
+                console.log("🚀 ~ GameService ~ socket.on ~ historyData:", historyData)
+
+                const totalAmount = await History.aggregate([
+                    {
+                        $match: {
+                            round: data.round
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            totalPrice: { $sum: "$price" }
+                        }
+                    }
+                ])
+
+                const players = await History.find({ round })
+                    .populate({
+                        path: 'user_id',
+                        select: 'username avatar email'
+                    })
+
+                socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, { players, totalAmount: totalAmount[0].totalPrice });
+            })
+
+            // Handle disconnection
+            socket.on('disconnect', () => {
+                console.log("disconnect!")
+            });
+        });
+    }
+
+    private async sendUpdateRound(socket: Socket) {
+        socket.emit(EGameEvent.UPDATE_ROUND, this.round);
+    }
+
+    private async sendDuration(socket: Socket, monitorRes: boolean) {
+        socket.emit(EGameEvent.DURATION_STATE, monitorRes);
+    }
+
+    private async sendWinner(socket: Socket, index: number) {
+        socket.emit(EGameEvent.WINNER, index);
+    }
+
     public initialGame = async (adminKP: Keypair) => {
         try {
             const initialIx = await initialize(adminKP.publicKey);
-            console.log("🚀 ~ GameService ~ initGame= ~ initialIx:", initialIx)
 
             if (initialIx) {
                 const transaction = new Transaction()
@@ -31,7 +114,6 @@ export class GameService {
     public newGame = async (adminKP: Keypair, round: number) => {
         try {
             const createGameIx = await createGame(adminKP.publicKey, round);
-            console.log("🚀 ~ GameService ~ newGame= ~ createGameIx:", createGameIx)
             if (createGameIx) {
                 const transaction = new Transaction()
                     .add(createGameIx)
@@ -96,9 +178,9 @@ export class GameService {
         }
     }
 
-    public gatherFees = async (teamWallet: PublicKey, adminKP: Keypair) => {
+    public gatherFees = async (teamWallet: PublicKey, adminKP: Keypair, round: number) => {
         try {
-            const transferFeesIx = await transferFees(teamWallet, adminKP.publicKey);
+            const transferFeesIx = await transferFees(teamWallet, adminKP.publicKey, round);
             if (transferFeesIx) {
                 const transaction = new Transaction()
                     .add(transferFeesIx)
@@ -117,14 +199,24 @@ export class GameService {
         }
     }
 
-    public playGame = async (adminKP: Keypair, teamWallet: PublicKey, round: number) => {
+    public playGame = async (socket: Socket, adminKP: Keypair, teamWallet: PublicKey) => {
         while (1) {
-            await this.newGame(adminKP, round);
-            await monitor(round);
-            const winner = await this.getWinner(adminKP, round);
-            await this.sendReward(adminKP, winner!, round);
-            await this.gatherFees(teamWallet, adminKP);
-            round++;
+            await this.newGame(adminKP, this.round);
+            this.sendUpdateRound(socket)
+            const monitorRes = await depositMonitor(this.round);
+            if (monitorRes) {
+                this.sendDuration(socket, monitorRes);
+            }
+            const isExpired = await durationState(this.round);
+            if (isExpired) {
+                const winnerRes = await this.getWinner(adminKP, this.round);
+                if (winnerRes) {
+                    this.sendWinner(socket, winnerRes.index);
+                    await this.sendReward(adminKP, winnerRes.winner, this.round);
+                    await this.gatherFees(teamWallet, adminKP, this.round);
+                    this.round++;
+                }
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
 {
-  "address": "5GQVMJTKHKh2Cef5mKwZih3DWAR9pfgqgqbDyb6xtDCN",
+  "address": "14GTLHUQyg5JQtWwg3LNhfedLHvKnhrWTYnb8nvAtWyH",
   "metadata": {
     "name": "solbet_jackpot_smart_contract",
     "version": "0.1.0",
@@ -111,7 +111,7 @@
       ],
       "args": [
         {
-          "name": "round",
+          "name": "roundIndex",
           "type": "u64"
         }
       ]
@@ -193,7 +193,7 @@
       ],
       "args": [
         {
-          "name": "round",
+          "name": "roundIndex",
           "type": "u64"
         }
       ]
@@ -357,7 +357,7 @@
       ],
       "args": [
         {
-          "name": "round",
+          "name": "roundIndex",
           "type": "u64"
         },
         {
@@ -438,7 +438,7 @@
       ],
       "args": [
         {
-          "name": "round",
+          "name": "roundIndex",
           "type": "u64"
         }
       ]
@@ -510,6 +510,32 @@
           "writable": true
         },
         {
+          "name": "round_acc",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round"
+              }
+            ]
+          }
+        },
+        {
           "name": "admin",
           "writable": true,
           "signer": true
@@ -519,7 +545,12 @@
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "roundIndex",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -558,8 +589,8 @@
     },
     {
       "code": 6001,
-      "name": "RoundNotCompleted",
-      "msg": "Round Not Completed"
+      "name": "RoundDurationIsNotOver",
+      "msg": "Round Duration is not over"
     },
     {
       "code": 6002,
@@ -568,36 +599,41 @@
     },
     {
       "code": 6003,
+      "name": "InvalidRoundCounter",
+      "msg": "Invalid Round Counter"
+    },
+    {
+      "code": 6004,
       "name": "InvalidAmount",
       "msg": "Invalid Amount"
     },
     {
-      "code": 6004,
+      "code": 6005,
       "name": "InvalidName",
       "msg": "Invalid Name"
     },
     {
-      "code": 6005,
+      "code": 6006,
       "name": "Overflow",
       "msg": "Overflow"
     },
     {
-      "code": 6006,
+      "code": 6007,
       "name": "WinnerAlreadySet",
       "msg": "Winner Already Set"
     },
     {
-      "code": 6007,
+      "code": 6008,
       "name": "RoundIsCompleted",
       "msg": "The Round is completed"
     },
     {
-      "code": 6008,
+      "code": 6009,
       "name": "NotWinner",
       "msg": "Not Winner"
     },
     {
-      "code": 6009,
+      "code": 6010,
       "name": "WinnerNotSet",
       "msg": "Winner not set"
     }
@@ -697,12 +733,20 @@
             }
           },
           {
+            "name": "winner_index",
+            "type": "u64"
+          },
+          {
             "name": "started_at",
             "type": "i64"
           },
           {
             "name": "ends_at",
             "type": "i64"
+          },
+          {
+            "name": "is_expired",
+            "type": "bool"
           },
           {
             "name": "is_completed",

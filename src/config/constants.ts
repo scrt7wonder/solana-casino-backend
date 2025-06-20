@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import type cors from 'cors'
-import { Connection, Keypair } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 dotenv.config();
@@ -43,7 +43,8 @@ export const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/sol
 export const ALLOW_HOSTS = process.env.ALLOW_HOSTS || "http://localhost:3000";
 
 export const CLUSTER = process.env.CLUSTER || "";
-export const TEAM_WALLET = process.env.TEAM_WALLET || "6fqaR9EfVoeWounR9psLmgQ1Jr3y43GbLMHGvWDyGMvH";
+const TEAM_WALLET = process.env.TEAM_WALLET || "6fqaR9EfVoeWounR9psLmgQ1Jr3y43GbLMHGvWDyGMvH";
+export const teamWallet = new PublicKey(TEAM_WALLET);
 export const PLATFORM_FEE = Number(process.env.PLATFORM_FEE) || 0;
 export const ROUND_DURATION = Number(process.env.ROUND_DURATION) || 0;
 

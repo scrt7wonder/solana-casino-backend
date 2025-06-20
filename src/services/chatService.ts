@@ -1,27 +1,20 @@
-import { Server as SocketIOServer, Socket } from 'socket.io';
+import { Server, Namespace, Socket } from 'socket.io';
 import Message from '../models/message';
-import { corsOptionsSocket } from '../config/constants';
 import cron from 'node-cron'
-import { EChatEvent } from '../types/socket';
+import { EChatEvent, ESOCKET_NAMESPACE } from '../types/socket';
 import logger from '../utils/logger';
 
 export class ChatService {
-    private io: SocketIOServer;
+    private socketServer: Namespace
     private activeUsers = new Map<string, Socket>();
 
-    constructor(server: any) {
-        this.io = new SocketIOServer(server, {
-            cors: {
-                origin: corsOptionsSocket, // Adjust in production
-                methods: ["GET", "POST"],
-                credentials: true,
-            }
-        });
+    constructor(socketServer: Server) {
+        this.socketServer = socketServer.of(ESOCKET_NAMESPACE.chat)
         this.setupConnection();
     }
 
     private setupConnection() {
-        this.io.on('connection', (socket: Socket) => {
+        this.socketServer.on('connection', (socket: Socket) => {
             let id = '';
             this._start(socket);
 
@@ -36,8 +29,8 @@ export class ChatService {
             socket.on(EChatEvent.MESSAGE, async (data: { content: string, sender: string }) => {
                 console.log("🚀 ~ ChatService ~ socket.on ~ data.sender:", data.sender)
                 const message = await Message.createMessage(data.sender, data.content);
-                
-                this.io.emit(EChatEvent.NEW_MESSAGE, message);
+
+                this.socketServer.emit(EChatEvent.NEW_MESSAGE, message);
             });
 
             // Handle disconnection
@@ -62,7 +55,7 @@ export class ChatService {
 
     private broadcastUserList() {
         const userList = Array.from(this.activeUsers.keys());
-        this.io.emit('user-list', userList);
+        this.socketServer.emit('user-list', userList);
     }
 
     private _start(socket: Socket) {

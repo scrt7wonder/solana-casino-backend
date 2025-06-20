@@ -1,8 +1,28 @@
+import { Server } from 'socket.io';
 import History from '../models/history';
 import { IHistory, IntervalResult } from '../types/history';
 import { getCurrentFormattedDateTime } from '../utils/utils';
 
 export class HistoryService {
+    public async saveHistory(data: IHistory): Promise<number> {
+        const historyData = new History(data);
+        historyData.save();
+
+        const totalAmount = await History.aggregate([
+            {
+                $match: {
+                    round: data.round
+                }
+            },
+            {
+                $group: {
+                    totalPrice: { $sum: "$price" }
+                }
+            }
+        ])
+        return totalAmount[0].totalPrice;
+    }
+
     public async getHistory(user_id: string): Promise<IHistory[]> {
         const historyData = await History.find({ user_id });
         return historyData

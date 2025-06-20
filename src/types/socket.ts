@@ -1,8 +1,23 @@
+import { IHistory } from "./history";
+
+export enum ESOCKET_NAMESPACE {
+    chat = '/chat',
+    game = '/game',
+}
+
 export enum EChatEvent {
     JOIN = 'join',
     MESSAGE = 'message',
     MESSAGE_HISTORY = 'message_history',
     NEW_MESSAGE = 'new_message'
+}
+
+export enum EGameEvent {
+    UPDATE_ROUND = 'update_round',
+    DURATION_STATE = 'duration_state',
+    WINNER = 'winner',
+    SAVE_HISTORY = 'save_history',
+    UPDATE_TOTAL_AMOUNT = 'update_total_amout'
 }
 
 interface IChatItem {
@@ -12,7 +27,7 @@ interface IChatItem {
     time: string;
 }
 
-export interface IChatServerToClientEvents {
+export interface IChatClientToServerEvents {
     [EChatEvent.JOIN]: (id: string) => void;
     [EChatEvent.MESSAGE]: ({ content, sender }: {
         content: string;
@@ -20,7 +35,18 @@ export interface IChatServerToClientEvents {
     }) => void;
 }
 
-export interface IChatClientToServerEvents {
+export interface IChatServerToClientEvents {
     [EChatEvent.MESSAGE_HISTORY]: (messages: IChatItem[]) => void;
     [EChatEvent.NEW_MESSAGE]: (message: IChatItem) => void;
+}
+
+export interface IGameClientToServerEvents {
+    [EGameEvent.SAVE_HISTORY]: (history: IHistory) => void
+}
+
+export interface IGameServerToClientEvents {
+    [EGameEvent.DURATION_STATE]: (state: boolean) => void;
+    [EGameEvent.UPDATE_ROUND]: (messages: number) => void;
+    [EGameEvent.WINNER]: (message: string) => void;
+    [EGameEvent.UPDATE_TOTAL_AMOUNT]: (data: number) => void;
 }

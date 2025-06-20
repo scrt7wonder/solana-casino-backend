@@ -4,7 +4,23 @@ import { HistoryController } from '../controllers/historyController';
 import { Request, Response, NextFunction } from 'express';
 
 const router = Router();
+
 const historyController = new HistoryController();
+
+// @route   POST /api/game/history/
+// @desc    save transaction
+// @access  Public
+
+router.post(
+    '/history',
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            await historyController.saveHistory(req, res);
+        } catch (err) {
+            next(err);
+        }
+    }
+);
 
 // @route   GET /api/game/history/:address
 // @desc    get transaction

@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import bodyParser from "body-parser";
 import morgan from 'morgan';
 import historyRoutes from './routes/historyRoutes';
 import authRoutes from './routes/authRoutes';

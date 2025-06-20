@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/solbet_jackpot_smart_contract.json`.
  */
 export type SolbetJackpotSmartContract = {
-  "address": "5GQVMJTKHKh2Cef5mKwZih3DWAR9pfgqgqbDyb6xtDCN",
+  "address": "14GTLHUQyg5JQtWwg3LNhfedLHvKnhrWTYnb8nvAtWyH",
   "metadata": {
     "name": "solbetJackpotSmartContract",
     "version": "0.1.0",
@@ -117,7 +117,7 @@ export type SolbetJackpotSmartContract = {
       ],
       "args": [
         {
-          "name": "round",
+          "name": "roundIndex",
           "type": "u64"
         }
       ]
@@ -199,7 +199,7 @@ export type SolbetJackpotSmartContract = {
       ],
       "args": [
         {
-          "name": "round",
+          "name": "roundIndex",
           "type": "u64"
         }
       ]
@@ -363,7 +363,7 @@ export type SolbetJackpotSmartContract = {
       ],
       "args": [
         {
-          "name": "round",
+          "name": "roundIndex",
           "type": "u64"
         },
         {
@@ -444,7 +444,7 @@ export type SolbetJackpotSmartContract = {
       ],
       "args": [
         {
-          "name": "round",
+          "name": "roundIndex",
           "type": "u64"
         }
       ]
@@ -516,6 +516,32 @@ export type SolbetJackpotSmartContract = {
           "writable": true
         },
         {
+          "name": "roundAcc",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round"
+              }
+            ]
+          }
+        },
+        {
           "name": "admin",
           "writable": true,
           "signer": true
@@ -525,7 +551,12 @@ export type SolbetJackpotSmartContract = {
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "roundIndex",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -564,8 +595,8 @@ export type SolbetJackpotSmartContract = {
     },
     {
       "code": 6001,
-      "name": "roundNotCompleted",
-      "msg": "Round Not Completed"
+      "name": "roundDurationIsNotOver",
+      "msg": "Round Duration is not over"
     },
     {
       "code": 6002,
@@ -574,36 +605,41 @@ export type SolbetJackpotSmartContract = {
     },
     {
       "code": 6003,
+      "name": "invalidRoundCounter",
+      "msg": "Invalid Round Counter"
+    },
+    {
+      "code": 6004,
       "name": "invalidAmount",
       "msg": "Invalid Amount"
     },
     {
-      "code": 6004,
+      "code": 6005,
       "name": "invalidName",
       "msg": "Invalid Name"
     },
     {
-      "code": 6005,
+      "code": 6006,
       "name": "overflow",
       "msg": "overflow"
     },
     {
-      "code": 6006,
+      "code": 6007,
       "name": "winnerAlreadySet",
       "msg": "Winner Already Set"
     },
     {
-      "code": 6007,
+      "code": 6008,
       "name": "roundIsCompleted",
       "msg": "The Round is completed"
     },
     {
-      "code": 6008,
+      "code": 6009,
       "name": "notWinner",
       "msg": "Not Winner"
     },
     {
-      "code": 6009,
+      "code": 6010,
       "name": "winnerNotSet",
       "msg": "Winner not set"
     }
@@ -703,12 +739,20 @@ export type SolbetJackpotSmartContract = {
             }
           },
           {
+            "name": "winnerIndex",
+            "type": "u64"
+          },
+          {
             "name": "startedAt",
             "type": "i64"
           },
           {
             "name": "endsAt",
             "type": "i64"
+          },
+          {
+            "name": "isExpired",
+            "type": "bool"
           },
           {
             "name": "isCompleted",
