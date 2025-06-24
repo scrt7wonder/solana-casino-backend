@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import historyRoutes from './routes/historyRoutes';
+import roundRoutes from './routes/roundRoutes';
 import authRoutes from './routes/authRoutes';
 import { notFoundHandler } from './middlewares/notFoundHandler';
 import { errorHandler } from './middlewares/errorHandler';
@@ -32,6 +33,7 @@ app.get("/", async (req: any, res: any) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/game', historyRoutes);
+app.use('/api/round', roundRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

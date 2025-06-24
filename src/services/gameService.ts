@@ -15,7 +15,7 @@ export class GameService {
     public won: number = 0;
     public chance: number = 0;
     private remainTime: number = 59;
-    private round: number = 31;
+    private round: number = 0;
     private isExpired: boolean = false;
     private monitorRes: boolean = false;
     private socketServer: Namespace;
