@@ -7,17 +7,24 @@ import { IHistory } from "../types/history";
 import History from "../models/history";
 import User from "../models/user";
 import { IUser } from "../types/user";
+import { RoundService } from "./roundService";
 
 export class GameService {
+    public roundService: RoundService;
+    public totalBetAmount: number = 0;
+    public won: number = 0;
+    public chance: number = 0;
     private remainTime: number = 59;
-    private round: number = 30;
+    private round: number = 31;
     private isExpired: boolean = false;
     private monitorRes: boolean = false;
     private socketServer: Namespace;
     private timerInterval: NodeJS.Timeout | null = null;
 
+
     constructor(socketServer: Server) {
-        this.socketServer = socketServer.of(ESOCKET_NAMESPACE.game)
+        this.socketServer = socketServer.of(ESOCKET_NAMESPACE.game);
+        this.roundService = new RoundService();
         this.initialGame(adminKP);
         this.setupConnection();
     }
@@ -33,6 +40,10 @@ export class GameService {
             this.sendUpdateTime(socket);
             this.sendDuration(socket);
             this.sendPlayer(socket, this.round);
+
+            socket.on(EGameEvent.GET_WAGER, async (data: string) => {
+                this.sendWager(socket, this.round, data);
+            })
 
             socket.on(EGameEvent.SAVE_HISTORY, async (data: IHistory) => {
                 console.log("🚀 ~ GameService ~ socket.on ~ data:", data)
@@ -66,12 +77,11 @@ export class GameService {
     }
 
     private async sendPlayer(socket: Socket, round: number) {
-        console.log("🚀 ~ GameService ~ sendPlayer ~ round:", round)
         try {
             const aggregationResult = await History.aggregate([
                 {
                     $match: {
-                        round: round,
+                        round,
                         type: "deposite"
                     }
                 },
@@ -86,6 +96,7 @@ export class GameService {
             // Default to 0 if no records found
             const totalAmount = aggregationResult[0]?.totalPrice || 0;
             console.log("Total amount for round:", totalAmount);
+            this.totalBetAmount = totalAmount;
 
             const players = await History.find({ round })
                 .populate({
@@ -97,6 +108,39 @@ export class GameService {
                 players,
                 totalAmount
             });
+        } catch (error) {
+            console.error("Error in sendPlayer:", error);
+            // Emit with default values in case of error
+            socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, {
+                players: [],
+                totalAmount: 0
+            });
+        }
+    }
+
+    private async sendWager(socket: Socket, round: number, user_id: string) {
+        try {
+            const aggregationResult = await History.aggregate([
+                {
+                    $match: {
+                        round,
+                        type: "deposite",
+                        user_id
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalPrice: { $sum: "$price" }
+                    }
+                }
+            ]);
+
+            // Default to 0 if no records found
+            const wager = aggregationResult[0]?.totalPrice || 0;
+            console.log("Total amount for round:", wager);
+
+            socket.emit(EGameEvent.WAGER, wager);
         } catch (error) {
             console.error("Error in sendPlayer:", error);
             // Emit with default values in case of error
@@ -211,7 +255,8 @@ export class GameService {
                 const signature = await sendAndConfirmTransaction(connection, transaction, [adminKP]);
                 console.log("🚀 ~ GameService ~ sendReward= ~ signature:", signature)
                 if (signature) {
-                    const reward = getRewardAmount(round);
+                    const reward = await getRewardAmount(round);
+                    this.won = reward;
                     const user: IUser | null = await User.findOne({ address: winner.toBase58() })
                     if (user) {
                         const saveData = {
@@ -287,17 +332,27 @@ export class GameService {
                 if (winnerRes) {
                     // Step 6: Process winner
                     this.sendWinner(socket, winnerRes.index);
+                    this.chance = winnerRes.deposit / this.totalBetAmount;
+                    const user = await User.findOne({ address: winnerRes.winner.toBase58() })
                     await this.sendReward(adminKP, winnerRes.winner, this.round);
                     await this.gatherFees(teamWallet, adminKP, this.round);
+                    if (user && user._id) {
+                        this.roundService.saveWinner(
+                            this.round,
+                            this.won,
+                            this.chance,
+                            user._id.toString()
+                        );
 
-                    // Step 7: Prepare next round
-                    this.round++;
-                    this.monitorRes = false;
-                    this.isExpired = false;
-                    this.remainTime = 59;
+                        // Step 7: Prepare next round
+                        this.round++;
+                        this.monitorRes = false;
+                        this.isExpired = false;
+                        this.remainTime = 59;
 
-                    // Notify clients of new round
-                    this.sendUpdateRound(socket);
+                        // Notify clients of new round
+                        this.sendUpdateRound(socket);
+                    }
                 }
             }
         } catch (error) {

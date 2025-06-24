@@ -1,7 +1,5 @@
-import { Server } from 'socket.io';
 import History from '../models/history';
 import { IHistory, IntervalResult } from '../types/history';
-import { getCurrentFormattedDateTime } from '../utils/utils';
 
 export class HistoryService {
     public async getHistory(user_id: string): Promise<IHistory[]> {

@@ -1,5 +1,5 @@
 {
-  "address": "CzEkmB9HxD5ciRd2ZeTvCXwEEFeCJXepisEP2gGTAz8K",
+  "address": "FJp1Wfh9AziuvNM1JyKxvZVbXYEfPocsyr6DG1TLvxjj",
   "metadata": {
     "name": "solbet_jackpot_smart_contract",
     "version": "0.1.0",
@@ -737,6 +737,10 @@
           },
           {
             "name": "winner_index",
+            "type": "u64"
+          },
+          {
+            "name": "winner_deposit_amount",
             "type": "u64"
           },
           {

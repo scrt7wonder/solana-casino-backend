@@ -161,7 +161,7 @@ export const setWinner = async (adminPk: PublicKey, round: number) => {
   }
 }
 
-export const fetchWinner = async (round: number): Promise<{ winner: PublicKey; index: number }> => {
+export const fetchWinner = async (round: number): Promise<{ winner: PublicKey; deposit: number; index: number }> => {
   while (true) {
     console.log("🚀 ~ fetchWinner ~ round:", round)
     // Derive round PDA
@@ -172,10 +172,10 @@ export const fetchWinner = async (round: number): Promise<{ winner: PublicKey; i
 
     const currentRound = await program.account.gameRound.fetch(roundPda);
     const winner = currentRound.winner;
-    console.log("🚀 ~ fetchWinner ~ currentRound.winnerIndex:", currentRound.winnerIndex)
+    const deposit = Number(currentRound.winnerDepositAmount) / LAMPORTS_PER_SOL;
     const index = Number(currentRound.winnerIndex);
     if (winner) {
-      return { winner, index };
+      return { winner, deposit, index };
     }
   }
 }
