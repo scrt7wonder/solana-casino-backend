@@ -11,16 +11,6 @@ export class HistoryController {
         this.historyService = new HistoryService();
     }
 
-    public saveHistory = async (req: Request, res: Response): Promise<Response> => {
-        try {
-            const historyData: IHistory = req.body;
-            const history = await this.historyService.saveHistory(historyData);
-            return res.status(201).json(history);
-        } catch (error) {
-            return res.status(400).json({ message: (error as Error).message });
-        }
-    };
-
     public getHistory = async (req: Request, res: Response): Promise<Response> => {
         try {
             const { id } = req.params;
@@ -33,8 +23,8 @@ export class HistoryController {
 
     public getChartData = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const { id } = req.params;
-            const ohlc = await this.historyService.getChartData(id);
+            const { id, date } = req.body;
+            const ohlc = await this.historyService.getChartData(id, date);
             return res.json(ohlc);
         } catch (error) {
             return res.status(500).json({ message: 'Server error' });

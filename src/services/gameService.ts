@@ -10,7 +10,7 @@ import { IUser } from "../types/user";
 
 export class GameService {
     private remainTime: number = 59;
-    private round: number = 25;
+    private round: number = 30;
     private isExpired: boolean = false;
     private monitorRes: boolean = false;
     private socketServer: Namespace;
@@ -90,7 +90,7 @@ export class GameService {
             const players = await History.find({ round })
                 .populate({
                     path: 'user_id',
-                    select: 'username avatar email'
+                    select: 'username avatar email created_at'
                 });
 
             socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, {

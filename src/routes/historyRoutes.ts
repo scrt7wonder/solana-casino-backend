@@ -7,21 +7,6 @@ const router = Router();
 
 const historyController = new HistoryController();
 
-// @route   POST /api/game/history/
-// @desc    save transaction
-// @access  Public
-
-router.post(
-    '/history',
-    async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            await historyController.saveHistory(req, res);
-        } catch (err) {
-            next(err);
-        }
-    }
-);
-
 // @route   GET /api/game/history/:address
 // @desc    get transaction
 // @access  Public
@@ -37,11 +22,11 @@ router.get(
     }
 );
 
-// @route   GET /api/game/ohlc
+// @route   POST /api/game/ohlc
 // @desc    get transaction
 // @access  Public
 
-router.get(
+router.post(
     '/ohlc',
     async (req: Request, res: Response, next: NextFunction) => {
         try {

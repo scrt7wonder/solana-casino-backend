@@ -9,76 +9,114 @@ export class HistoryService {
         return historyData
     }
 
-    public async getChartData(user_id: string): Promise<IntervalResult[]> {
-        const historyData = await History.find({ user_id });
+    public async getChartData(user_id: string, duringDate: string): Promise<IntervalResult[]> {
+        let historyData: IHistory[];
+        const date = duringDate.split(" ")[1]
+        if (date == "Time") {
+            historyData = await History.find({ user_id });
+        } else {
+            const daysAgo = new Date();
+            daysAgo.setDate(daysAgo.getDate() - Number(date));
+
+            historyData = await History.find({
+                user_id,
+                create_at: { $gte: daysAgo }
+            }).sort({ created_at: 1 });
+        }
         const ohlcData = this.processIntervals(historyData);
         return ohlcData
     }
 
     private processIntervals(data: IHistory[]): IntervalResult[] {
-        // Step 1: Sort the array by timestamp
+        // Step 1: Sort data by timestamp (ascending)
         data.sort((a, b) => a.create_at.getTime() - b.create_at.getTime());
 
-        // Step 2: Initialize variables
-        const intervalDuration = 20 * 1000; // 5 minutes in milliseconds
+        // Step 2: Remove ALL duplicate timestamps (not just keep last)
+        const uniqueData: IHistory[] = [];
+        const seenTimestamps = new Set<number>();
+
+        for (const entry of data) {
+            const timestamp = entry.create_at.getTime();
+            if (!seenTimestamps.has(timestamp)) {
+                seenTimestamps.add(timestamp);
+                uniqueData.push(entry);
+            }
+        }
+
+        // Step 3: Initialize interval tracking variables
+        const intervalDuration = 20 * 1000; // 20 seconds
         const result: IntervalResult[] = [];
-        let intervalStart: number | null = null;
-        let intervalEnd: number | null = null;
-        let startPrice: number | null = null;
-        let endPrice: number | null = null;
-        let maxPrice: number = -Infinity;
-        let minPrice: number = Infinity;
-        let lastClosePrice: number | null = null;
+        let currentInterval: {
+            startTime: number;
+            open: number;
+            high: number;
+            low: number;
+            close: number;
+        } | null = null;
 
-        // Step 3: Process each entry in the sorted array
-        data.forEach((entry, index) => {
-            const currentTime = entry.create_at.getTime();
+        // Step 4: Process each unique entry
+        for (const entry of uniqueData) {
+            const entryTime = entry.create_at.getTime();
+            const entryPrice = entry.price;
 
-
-            // Initialize interval start if not set
-            if (intervalStart === null) {
-                intervalStart = currentTime;
-                startPrice = entry.price;
+            // Initialize first interval
+            if (!currentInterval) {
+                currentInterval = {
+                    startTime: entryTime,
+                    open: entryPrice,
+                    high: entryPrice,
+                    low: entryPrice,
+                    close: entryPrice
+                };
+                continue;
             }
 
-            // Determine if the current entry is within the current interval
-            if (currentTime < intervalStart + intervalDuration) {
-                // Update end price and other statistics within the interval
-                intervalEnd = currentTime;
-                endPrice = entry.price;
-                maxPrice = Math.max(maxPrice, entry.price);
-                minPrice = Math.min(minPrice, entry.price);
+            // Check if within current interval
+            if (entryTime < currentInterval.startTime + intervalDuration) {
+                // Update current interval stats
+                currentInterval.high = Math.max(currentInterval.high, entryPrice);
+                currentInterval.low = Math.min(currentInterval.low, entryPrice);
+                currentInterval.close = entryPrice;
             } else {
-                // Push the previous interval's data to result
+                // Finalize current interval
                 result.push({
-                    open: lastClosePrice!,
-                    close: endPrice!,
-                    high: maxPrice,
-                    low: minPrice,
-                    date: getCurrentFormattedDateTime(currentTime),
+                    open: currentInterval.open,
+                    high: currentInterval.high,
+                    low: currentInterval.low,
+                    close: currentInterval.close,
+                    time: currentInterval.startTime
                 });
-                lastClosePrice = endPrice
 
-                // Reset for the new interval
-                intervalStart = currentTime;
-                startPrice = entry.price;
-                intervalEnd = currentTime;
-                endPrice = entry.price;
-                maxPrice = entry.price;
-                minPrice = entry.price;
+                // Start new interval
+                currentInterval = {
+                    startTime: entryTime,
+                    open: currentInterval.close, // New interval opens at previous close
+                    high: entryPrice,
+                    low: entryPrice,
+                    close: entryPrice
+                };
             }
+        }
 
-            // Handle the last entry to ensure it gets included
-            if (index === data.length - 1) {
-                result.push({
-                    open: startPrice!,
-                    close: endPrice!,
-                    high: maxPrice,
-                    low: minPrice,
-                    date: getCurrentFormattedDateTime(currentTime),
-                });
+        // Add the last interval if it exists
+        if (currentInterval) {
+            result.push({
+                open: currentInterval.open,
+                high: currentInterval.high,
+                low: currentInterval.low,
+                close: currentInterval.close,
+                time: currentInterval.startTime
+            });
+        }
+
+        // Final validation
+        if (result.length > 1) {
+            for (let i = 1; i < result.length; i++) {
+                if (result[i].time <= result[i - 1].time) {
+                    throw new Error(`Non-ascending timestamps at index ${i}`);
+                }
             }
-        });
+        }
 
         return result;
     }

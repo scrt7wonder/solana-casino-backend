@@ -15,5 +15,5 @@ export interface IntervalResult {
     close: number;
     high: number;
     low: number;
-    date: string;
+    time: number;
 }
