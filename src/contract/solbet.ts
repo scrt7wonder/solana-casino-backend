@@ -53,10 +53,19 @@ export const initialize = async (adminPk: PublicKey) => {
 
 export const createGame = async (adminPk: PublicKey, round: number) => {
   try {
+    // Derive round PDA
+    const [roundPda] = PublicKey.findProgramAddressSync(
+      [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
     const createGameIx = await program.methods
       .createGame(new BN(round))
-      .accounts({
+      .accountsStrict({
         admin: adminPk,
+        config: configPda,
+        roundAcc: roundPda,
+        systemProgram: SystemProgram.programId
       })
       .instruction();
 
@@ -67,8 +76,8 @@ export const createGame = async (adminPk: PublicKey, round: number) => {
   }
 }
 
-export const depositMonitor = async (round: number) => {
-  while (1) {
+export const depositMonitor = async (round: number): Promise<boolean> => {
+  while (true) {
     // Derive round PDA
     const [roundPda] = PublicKey.findProgramAddressSync(
       [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
@@ -77,9 +86,11 @@ export const depositMonitor = async (round: number) => {
 
     const currentRound = await program.account.gameRound.fetch(roundPda);
     const deposites = currentRound.deposits;
+    console.log("🚀 ~ depositMonitor ~ deposites:", deposites)
     if (deposites.length >= 1) {
       return true;
     }
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 }
 
@@ -110,7 +121,7 @@ export const joinGame = async (userPk: PublicKey, round: number, depositsAmount:
 }
 
 export const durationState = async (round: number) => {
-  while (1) {
+  while (true) {
     // Derive round PDA
     const [roundPda] = PublicKey.findProgramAddressSync(
       [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
@@ -119,6 +130,7 @@ export const durationState = async (round: number) => {
 
     const currentRound = await program.account.gameRound.fetch(roundPda);
     const isExpired = currentRound.isExpired;
+    console.log("🚀 ~ durationState ~ isExpired:", isExpired)
     if (isExpired) {
       return isExpired;
     }
@@ -149,8 +161,9 @@ export const setWinner = async (adminPk: PublicKey, round: number) => {
   }
 }
 
-export const fetchWinner = async (round: number) => {
-  while (1) {
+export const fetchWinner = async (round: number): Promise<{ winner: PublicKey; index: number }> => {
+  while (true) {
+    console.log("🚀 ~ fetchWinner ~ round:", round)
     // Derive round PDA
     const [roundPda] = PublicKey.findProgramAddressSync(
       [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
@@ -159,6 +172,7 @@ export const fetchWinner = async (round: number) => {
 
     const currentRound = await program.account.gameRound.fetch(roundPda);
     const winner = currentRound.winner;
+    console.log("🚀 ~ fetchWinner ~ currentRound.winnerIndex:", currentRound.winnerIndex)
     const index = Number(currentRound.winnerIndex);
     if (winner) {
       return { winner, index };
@@ -168,18 +182,40 @@ export const fetchWinner = async (round: number) => {
 
 export const claimReward = async (adminPk: PublicKey, winnerPk: PublicKey, round: number) => {
   try {
+    // Derive round PDA
+    const [roundPda] = PublicKey.findProgramAddressSync(
+      [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
     const claimRewardIx = await program.methods
       .claimReward(new BN(round))
-      .accounts({
+      .accountsStrict({
         admin: adminPk,
         winner: winnerPk,
+        config: configPda,
+        roundAcc: roundPda,
+        systemProgram: SystemProgram.programId,
+        vault: vaultPda
       })
       .instruction();
-    console.log("🎉 Claim Reward Ix:", claimRewardIx);
     return claimRewardIx;
   } catch (err) {
     console.log("🚀 ~ claimReward ~ err:", err)
   }
+}
+
+export const getRewardAmount = async (round: number): Promise<number> => {
+  console.log("🚀 ~ fetchWinner ~ round:", round)
+  // Derive round PDA
+  const [roundPda] = PublicKey.findProgramAddressSync(
+    [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
+    program.programId
+  );
+
+  const currentRound = await program.account.gameRound.fetch(roundPda);
+  const reward = Number(currentRound.totalAmount) * (10000 - PLATFORM_FEE) / 10000;
+  return reward
 }
 
 export const transferFees = async (teamWalPk: PublicKey, adminPk: PublicKey, round: number) => {
@@ -200,24 +236,6 @@ export const transferFees = async (teamWalPk: PublicKey, adminPk: PublicKey, rou
       vault: vaultPda
     })
     .instruction();
-  console.log("🚀 ~ transferFees ~ transferFeesIx:", transferFeesIx)
   return transferFeesIx
-}
-
-export const roundCompleted = async (round: number) => {
-  while (1) {
-    // Derive round PDA
-    console.log("🚀 ~ roundCompleted ~ program.programId:", program.programId)
-    const [roundPda] = PublicKey.findProgramAddressSync(
-      [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
-      program.programId
-    );
-
-    const currentRound = await program.account.gameRound.fetch(roundPda);
-    const isCompleted = currentRound.isCompleted;
-    if (isCompleted) {
-      return isCompleted;
-    }
-  }
 }
 

@@ -1,5 +1,5 @@
 {
-  "address": "14GTLHUQyg5JQtWwg3LNhfedLHvKnhrWTYnb8nvAtWyH",
+  "address": "CzEkmB9HxD5ciRd2ZeTvCXwEEFeCJXepisEP2gGTAz8K",
   "metadata": {
     "name": "solbet_jackpot_smart_contract",
     "version": "0.1.0",
@@ -174,9 +174,8 @@
                 ]
               },
               {
-                "kind": "account",
-                "path": "config.round_counter",
-                "account": "Config"
+                "kind": "arg",
+                "path": "round"
               }
             ]
           }
@@ -589,8 +588,8 @@
     },
     {
       "code": 6001,
-      "name": "RoundDurationIsNotOver",
-      "msg": "Round Duration is not over"
+      "name": "RoundDurationIsOver",
+      "msg": "Round Duration is over"
     },
     {
       "code": 6002,
@@ -667,6 +666,10 @@
           {
             "name": "min_deposit_amount",
             "type": "u64"
+          },
+          {
+            "name": "is_completed",
+            "type": "bool"
           }
         ]
       }
@@ -746,10 +749,6 @@
           },
           {
             "name": "is_expired",
-            "type": "bool"
-          },
-          {
-            "name": "is_completed",
             "type": "bool"
           },
           {

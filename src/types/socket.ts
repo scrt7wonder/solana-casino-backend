@@ -15,6 +15,8 @@ export enum EChatEvent {
 export enum EGameEvent {
     UPDATE_ROUND = 'update_round',
     DURATION_STATE = 'duration_state',
+    UPDATE_REMAIN_TIME = 'update_remain_time',
+    IS_EXPIRED = 'is_Expired',
     WINNER = 'winner',
     SAVE_HISTORY = 'save_history',
     UPDATE_TOTAL_AMOUNT = 'update_total_amout'
@@ -41,7 +43,7 @@ export interface IChatServerToClientEvents {
 }
 
 export interface IGameClientToServerEvents {
-    [EGameEvent.SAVE_HISTORY]: (history: IHistory) => void
+    [EGameEvent.SAVE_HISTORY]: (history: IHistory) => void;
 }
 
 export interface IGameServerToClientEvents {
@@ -49,4 +51,5 @@ export interface IGameServerToClientEvents {
     [EGameEvent.UPDATE_ROUND]: (messages: number) => void;
     [EGameEvent.WINNER]: (message: string) => void;
     [EGameEvent.UPDATE_TOTAL_AMOUNT]: (data: number) => void;
+    [EGameEvent.UPDATE_REMAIN_TIME]: (time: number) => void;
 }

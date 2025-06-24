@@ -1,32 +1,38 @@
 import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
-import { claimReward, createGame, depositMonitor, durationState, fetchWinner, initialize, setWinner, transferFees } from "../contract/solbet";
+import { claimReward, createGame, depositMonitor, fetchWinner, getRewardAmount, initialize, setWinner, transferFees } from "../contract/solbet";
 import { adminKP, connection, teamWallet } from "../config/constants";
 import { Namespace, Server, Socket } from "socket.io";
 import { EGameEvent, ESOCKET_NAMESPACE } from "../types/socket";
 import { IHistory } from "../types/history";
 import History from "../models/history";
+import User from "../models/user";
+import { IUser } from "../types/user";
 
 export class GameService {
-    public round: number = 0;
-    public duration_state: boolean = false;
-    private isGameInitialized: boolean = false; // Track initialization state
-    private socketServer: Namespace
+    private remainTime: number = 59;
+    private round: number = 25;
+    private isExpired: boolean = false;
+    private monitorRes: boolean = false;
+    private socketServer: Namespace;
+    private timerInterval: NodeJS.Timeout | null = null;
 
     constructor(socketServer: Server) {
         this.socketServer = socketServer.of(ESOCKET_NAMESPACE.game)
+        this.initialGame(adminKP);
         this.setupConnection();
     }
 
-    private setupConnection() {
+    private async setupConnection() {
         this.socketServer.on('connection', (socket: Socket) => {
             // Initialize game on first connection
-            if (!this.isGameInitialized && this.socketServer.sockets.size === 1) {
-                this.isGameInitialized = true;
-                this.initialGame(adminKP);
+            if (this.socketServer.sockets.size === 1) {
                 this.playGame(socket, adminKP, teamWallet)
             }
 
-            this.sendUpdateRound(socket)
+            this.sendUpdateRound(socket);
+            this.sendUpdateTime(socket);
+            this.sendDuration(socket);
+            this.sendPlayer(socket, this.round);
 
             socket.on(EGameEvent.SAVE_HISTORY, async (data: IHistory) => {
                 console.log("🚀 ~ GameService ~ socket.on ~ data:", data)
@@ -42,30 +48,14 @@ export class GameService {
                     user_id
                 }
                 const historyData = new History(saveData);
-                historyData.save();
+                await historyData.save();
                 console.log("🚀 ~ GameService ~ socket.on ~ historyData:", historyData)
 
-                const totalAmount = await History.aggregate([
-                    {
-                        $match: {
-                            round: data.round
-                        }
-                    },
-                    {
-                        $group: {
-                            _id: null,
-                            totalPrice: { $sum: "$price" }
-                        }
-                    }
-                ])
+                await this.sendPlayer(socket, data.round);
+            })
 
-                const players = await History.find({ round })
-                    .populate({
-                        path: 'user_id',
-                        select: 'username avatar email'
-                    })
-
-                socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, { players, totalAmount: totalAmount[0].totalPrice });
+            socket.on(EGameEvent.IS_EXPIRED, (state: boolean) => {
+                this.isExpired = state;
             })
 
             // Handle disconnection
@@ -75,12 +65,60 @@ export class GameService {
         });
     }
 
+    private async sendPlayer(socket: Socket, round: number) {
+        console.log("🚀 ~ GameService ~ sendPlayer ~ round:", round)
+        try {
+            const aggregationResult = await History.aggregate([
+                {
+                    $match: {
+                        round: round,
+                        type: "deposite"
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalPrice: { $sum: "$price" }
+                    }
+                }
+            ]);
+
+            // Default to 0 if no records found
+            const totalAmount = aggregationResult[0]?.totalPrice || 0;
+            console.log("Total amount for round:", totalAmount);
+
+            const players = await History.find({ round })
+                .populate({
+                    path: 'user_id',
+                    select: 'username avatar email'
+                });
+
+            socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, {
+                players,
+                totalAmount
+            });
+        } catch (error) {
+            console.error("Error in sendPlayer:", error);
+            // Emit with default values in case of error
+            socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, {
+                players: [],
+                totalAmount: 0
+            });
+        }
+    }
+
     private async sendUpdateRound(socket: Socket) {
         socket.emit(EGameEvent.UPDATE_ROUND, this.round);
     }
 
-    private async sendDuration(socket: Socket, monitorRes: boolean) {
-        socket.emit(EGameEvent.DURATION_STATE, monitorRes);
+    private async sendUpdateTime(socket: Socket) {
+        console.log("🚀 ~ GameService ~ sendDuration ~ monitorRes:", this.remainTime)
+        socket.emit(EGameEvent.UPDATE_REMAIN_TIME, this.remainTime);
+    }
+
+    private async sendDuration(socket: Socket) {
+        console.log("🚀 ~ GameService ~ sendDuration ~ this.monitorRes:", this.monitorRes)
+        socket.emit(EGameEvent.DURATION_STATE, this.monitorRes);
     }
 
     private async sendWinner(socket: Socket, index: number) {
@@ -172,6 +210,25 @@ export class GameService {
                 // Send transaction and await for signature
                 const signature = await sendAndConfirmTransaction(connection, transaction, [adminKP]);
                 console.log("🚀 ~ GameService ~ sendReward= ~ signature:", signature)
+                if (signature) {
+                    const reward = getRewardAmount(round);
+                    const user: IUser | null = await User.findOne({ address: winner.toBase58() })
+                    if (user) {
+                        const saveData = {
+                            sig: signature,
+                            price: reward,
+                            type: "reward",
+                            status: "success",
+                            create_at: new Date(),
+                            round,
+                            user_id: user._id
+                        }
+                        const historyData = new History(saveData);
+                        await historyData.save();
+                    } else {
+                        console.log("Can not find user!");
+                    }
+                }
             }
         } catch (error) {
             console.log("🚀 ~ GameService ~ sendReward= ~ error:", error)
@@ -200,23 +257,73 @@ export class GameService {
     }
 
     public playGame = async (socket: Socket, adminKP: Keypair, teamWallet: PublicKey) => {
-        while (1) {
-            await this.newGame(adminKP, this.round);
-            this.sendUpdateRound(socket)
-            const monitorRes = await depositMonitor(this.round);
-            if (monitorRes) {
-                this.sendDuration(socket, monitorRes);
-            }
-            const isExpired = await durationState(this.round);
-            if (isExpired) {
+        try {
+            while (true) {
+                // Step 1: Start new game round
+                await this.newGame(adminKP, this.round);
+                this.sendUpdateRound(socket);
+
+                // Step 2: Check deposit monitor status
+                this.monitorRes = await depositMonitor(this.round);
+                console.log("Deposit monitor result:", this.monitorRes);
+
+                // Step 3: If deposits are ready, start/reset timer
+                if (this.monitorRes && this.remainTime == 59) {
+                    this.sendDuration(socket);
+                    this.isExpired = false;
+                    this.startTimer(); // Start countdown
+                }
+
+                // Step 4: Wait for round expiration
+                while (!this.isExpired) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Check every second
+                    console.log(`Waiting... Time remaining: ${this.remainTime}s`);
+                }
+
+                // Step 5: Determine winner when time expires
                 const winnerRes = await this.getWinner(adminKP, this.round);
+                console.log("Winner result:", winnerRes);
+
                 if (winnerRes) {
+                    // Step 6: Process winner
                     this.sendWinner(socket, winnerRes.index);
                     await this.sendReward(adminKP, winnerRes.winner, this.round);
                     await this.gatherFees(teamWallet, adminKP, this.round);
+
+                    // Step 7: Prepare next round
                     this.round++;
+                    this.monitorRes = false;
+                    this.isExpired = false;
+                    this.remainTime = 59;
+
+                    // Notify clients of new round
+                    this.sendUpdateRound(socket);
                 }
             }
+        } catch (error) {
+            console.error("Game loop error:", error);
+            // Implement your error recovery logic here
         }
+    };
+
+    private startTimer() {
+        // Clear any existing timer
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+
+        this.timerInterval = setInterval(() => {
+            if (this.remainTime > 0) {
+                this.remainTime--;
+
+                if (this.remainTime === 0) {
+                    this.isExpired = true;
+                    if (this.timerInterval !== null) {
+                        clearInterval(this.timerInterval);
+                        this.timerInterval = null;
+                    }
+                }
+            }
+        }, 1000);
     }
 }
