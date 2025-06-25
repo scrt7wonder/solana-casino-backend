@@ -6,12 +6,12 @@ const router = Router();
 
 const historyController = new HistoryController();
 
-// @route   GET /api/game/history/:address
+// @route   POST /api/game/history
 // @desc    get transaction
 // @access  Public
 
-router.get(
-    '/history/:id',
+router.post(
+    '/history',
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await historyController.getHistory(req, res);

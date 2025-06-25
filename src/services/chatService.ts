@@ -46,7 +46,7 @@ export class ChatService {
             .sort({ timestamp: -1 })
             .populate({
                 path: 'user_id',
-                select: 'username avatar email'
+                select: 'username avatar email created_at'
             })
             .limit(50)
             .lean();

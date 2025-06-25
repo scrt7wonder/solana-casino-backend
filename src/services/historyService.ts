@@ -2,9 +2,30 @@ import History from '../models/history';
 import { IHistory, IntervalResult } from '../types/history';
 
 export class HistoryService {
-    public async getHistory(user_id: string): Promise<IHistory[]> {
-        const historyData = await History.find({ user_id });
-        return historyData
+    public async getHistory(user_id: string, page: number = 1): Promise<{
+        data: IHistory[];
+        total: number;
+        page: number;
+        totalPages: number;
+    }> {
+        const perPage = 10; // Items per page
+        const skip = (page - 1) * perPage;
+
+        // Get paginated data
+        const historyData = await History.find({ user_id })
+            .sort({ create_at: -1 }) // Sort by newest first
+            .skip(skip)
+            .limit(perPage);
+
+        // Get total count for pagination info
+        const total = await History.countDocuments({ user_id });
+
+        return {
+            data: historyData,
+            total,
+            page,
+            totalPages: Math.ceil(total / perPage),
+        };
     }
 
     public async getChartData(user_id: string, duringDate: string): Promise<IntervalResult[]> {

@@ -10,8 +10,8 @@ export class HistoryController {
 
     public getHistory = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const { id } = req.params;
-            const history = await this.historyService.getHistory(id);
+            const { id, page } = req.body;
+            const history = await this.historyService.getHistory(id, page);
             return res.status(201).json(history);
         } catch (error) {
             return res.status(400).json({ message: (error as Error).message });

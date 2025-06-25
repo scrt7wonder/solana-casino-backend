@@ -51,6 +51,12 @@ export const initialize = async (adminPk: PublicKey) => {
   }
 }
 
+export const fetchRound = async () => {
+  const config = await program.account.config.fetch(configPda);
+  const round = config.roundCounter;
+  return round;
+}
+
 export const createGame = async (adminPk: PublicKey, round: number) => {
   try {
     // Derive round PDA
@@ -214,7 +220,10 @@ export const getRewardAmount = async (round: number): Promise<number> => {
   );
 
   const currentRound = await program.account.gameRound.fetch(roundPda);
+  console.log("🚀 ~ getRewardAmount ~ currentRound:", currentRound)
+  console.log("🚀 ~ getRewardAmount ~ currentRound.totalAmount:", currentRound.totalAmount)
   const reward = Number(currentRound.totalAmount) * (10000 - PLATFORM_FEE) / 10000;
+  console.log("🚀 ~ getRewardAmount ~ reward:", reward)
   return reward
 }
 
