@@ -1,0 +1,766 @@
+{
+    "address": "CmnKAwoJ5nBu5HZ4jESL3GrhiZoLMLmmDg4on5LYaWee",
+    "metadata": {
+        "name": "solbet_jackpot_smart_contract",
+        "version": "0.1.0",
+        "spec": "0.1.0",
+        "description": "Created with Anchor"
+    },
+    "instructions": [
+        {
+            "name": "claim_reward",
+            "discriminator": [
+                149,
+                95,
+                181,
+                242,
+                94,
+                90,
+                158,
+                162
+            ],
+            "accounts": [
+                {
+                    "name": "config",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    108,
+                                    111,
+                                    98,
+                                    97,
+                                    108,
+                                    99,
+                                    111,
+                                    110,
+                                    102,
+                                    105,
+                                    103
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "round_acc",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    97,
+                                    109,
+                                    101,
+                                    114,
+                                    111,
+                                    117,
+                                    110,
+                                    100
+                                ]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "round"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "admin",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "winner",
+                    "writable": true
+                },
+                {
+                    "name": "vault",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    108,
+                                    111,
+                                    98,
+                                    108,
+                                    101,
+                                    118,
+                                    97,
+                                    117,
+                                    108,
+                                    116
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "roundIndex",
+                    "type": "u64"
+                }
+            ]
+        },
+        {
+            "name": "create_game",
+            "discriminator": [
+                124,
+                69,
+                75,
+                66,
+                184,
+                220,
+                72,
+                206
+            ],
+            "accounts": [
+                {
+                    "name": "config",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    108,
+                                    111,
+                                    98,
+                                    97,
+                                    108,
+                                    99,
+                                    111,
+                                    110,
+                                    102,
+                                    105,
+                                    103
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "round_acc",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    97,
+                                    109,
+                                    101,
+                                    114,
+                                    111,
+                                    117,
+                                    110,
+                                    100
+                                ]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "round"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "admin",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "roundIndex",
+                    "type": "u64"
+                }
+            ]
+        },
+        {
+            "name": "initialize",
+            "discriminator": [
+                175,
+                175,
+                109,
+                31,
+                13,
+                152,
+                155,
+                237
+            ],
+            "accounts": [
+                {
+                    "name": "admin",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "config",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    108,
+                                    111,
+                                    98,
+                                    97,
+                                    108,
+                                    99,
+                                    111,
+                                    110,
+                                    102,
+                                    105,
+                                    103
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "input",
+                    "type": {
+                        "defined": {
+                            "name": "ConfigInput"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "join_game",
+            "discriminator": [
+                107,
+                112,
+                18,
+                38,
+                56,
+                173,
+                60,
+                128
+            ],
+            "accounts": [
+                {
+                    "name": "config",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    108,
+                                    111,
+                                    98,
+                                    97,
+                                    108,
+                                    99,
+                                    111,
+                                    110,
+                                    102,
+                                    105,
+                                    103
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "vault",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    108,
+                                    111,
+                                    98,
+                                    108,
+                                    101,
+                                    118,
+                                    97,
+                                    117,
+                                    108,
+                                    116
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "round_acc",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    97,
+                                    109,
+                                    101,
+                                    114,
+                                    111,
+                                    117,
+                                    110,
+                                    100
+                                ]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "round"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "user",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "roundIndex",
+                    "type": "u64"
+                },
+                {
+                    "name": "amount",
+                    "type": "u64"
+                }
+            ]
+        },
+        {
+            "name": "set_winner",
+            "discriminator": [
+                207,
+                149,
+                39,
+                13,
+                31,
+                233,
+                182,
+                109
+            ],
+            "accounts": [
+                {
+                    "name": "config",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    108,
+                                    111,
+                                    98,
+                                    97,
+                                    108,
+                                    99,
+                                    111,
+                                    110,
+                                    102,
+                                    105,
+                                    103
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "round_acc",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    97,
+                                    109,
+                                    101,
+                                    114,
+                                    111,
+                                    117,
+                                    110,
+                                    100
+                                ]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "round"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "admin",
+                    "writable": true,
+                    "signer": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "roundIndex",
+                    "type": "u64"
+                }
+            ]
+        },
+        {
+            "name": "transfer_fees",
+            "discriminator": [
+                103,
+                60,
+                61,
+                79,
+                56,
+                61,
+                76,
+                49
+            ],
+            "accounts": [
+                {
+                    "name": "config",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    108,
+                                    111,
+                                    98,
+                                    97,
+                                    108,
+                                    99,
+                                    111,
+                                    110,
+                                    102,
+                                    105,
+                                    103
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "vault",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    108,
+                                    111,
+                                    98,
+                                    108,
+                                    101,
+                                    118,
+                                    97,
+                                    117,
+                                    108,
+                                    116
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "team_wallet",
+                    "writable": true
+                },
+                {
+                    "name": "round_acc",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    103,
+                                    97,
+                                    109,
+                                    101,
+                                    114,
+                                    111,
+                                    117,
+                                    110,
+                                    100
+                                ]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "round"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "admin",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "roundIndex",
+                    "type": "u64"
+                }
+            ]
+        }
+    ],
+    "accounts": [
+        {
+            "name": "Config",
+            "discriminator": [
+                155,
+                12,
+                170,
+                224,
+                30,
+                250,
+                204,
+                130
+            ]
+        },
+        {
+            "name": "GameRound",
+            "discriminator": [
+                69,
+                45,
+                252,
+                31,
+                254,
+                31,
+                101,
+                146
+            ]
+        }
+    ],
+    "errors": [
+        {
+            "code": 6000,
+            "name": "InvalidAuthority",
+            "msg": "Invalid authority"
+        },
+        {
+            "code": 6001,
+            "name": "RoundDurationIsOver",
+            "msg": "Round Duration is over"
+        },
+        {
+            "code": 6002,
+            "name": "RoundAlreadyCompleted",
+            "msg": "Round Already Completed"
+        },
+        {
+            "code": 6003,
+            "name": "InvalidRoundCounter",
+            "msg": "Invalid Round Counter"
+        },
+        {
+            "code": 6004,
+            "name": "InvalidAmount",
+            "msg": "Invalid Amount"
+        },
+        {
+            "code": 6005,
+            "name": "InvalidName",
+            "msg": "Invalid Name"
+        },
+        {
+            "code": 6006,
+            "name": "Overflow",
+            "msg": "Overflow"
+        },
+        {
+            "code": 6007,
+            "name": "WinnerAlreadySet",
+            "msg": "Winner Already Set"
+        },
+        {
+            "code": 6008,
+            "name": "RoundIsCompleted",
+            "msg": "The Round is completed"
+        },
+        {
+            "code": 6009,
+            "name": "NotWinner",
+            "msg": "Not Winner"
+        },
+        {
+            "code": 6010,
+            "name": "WinnerNotSet",
+            "msg": "Winner not set"
+        }
+    ],
+    "types": [
+        {
+            "name": "Config",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "admin",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "team_wallet",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "round_counter",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "platform_fee",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "round_duration",
+                        "type": "i64"
+                    },
+                    {
+                        "name": "min_deposit_amount",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "is_completed",
+                        "type": "bool"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "ConfigInput",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "team_wallet",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "platform_fee",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "round_duration",
+                        "type": "i64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "DepositInfo",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "user",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "GameRound",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "deposits",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "DepositInfo"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "total_amount",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "winner",
+                        "type": {
+                            "option": "pubkey"
+                        }
+                    },
+                    {
+                        "name": "winner_index",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "winner_deposit_amount",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "started_at",
+                        "type": "i64"
+                    },
+                    {
+                        "name": "ends_at",
+                        "type": "i64"
+                    },
+                    {
+                        "name": "is_expired",
+                        "type": "bool"
+                    },
+                    {
+                        "name": "rand",
+                        "type": "u64"
+                    }
+                ]
+            }
+        }
+    ]
+}
