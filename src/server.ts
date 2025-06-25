@@ -2,13 +2,21 @@ import app from './app';
 import http from "http";
 import { PORT } from './config/constants';
 import { connectDB } from './config/db';
+import { SocketController } from './controllers/socketController';
 
-// Connect to the MongoDB database
-connectDB();
+const start = () => {
+    // Connect to the MongoDB database
+    connectDB();
 
-const server = http.createServer(app);
+    const server = http.createServer(app);
 
-// Start the Express server to listen on the specified port
-server.listen(PORT, () => {
-    console.log(`server is listening on ${PORT}`);
-});
+    // Initialize Socket.IO Chat Service
+    new SocketController(server);
+
+    // Start the Express server to listen on the specified port
+    server.listen(PORT, () => {
+        console.log(`server is listening on ${PORT}`);
+    });
+}
+
+start()

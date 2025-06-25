@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { check } from 'express-validator';
-import { AuthController } from '../controllers/authController';
+import { AuthController } from '../controllers/auth';
 import { authMiddleware } from '../middlewares/auth';
 import { Request, Response, NextFunction } from 'express';
 
@@ -10,14 +10,9 @@ const authController = new AuthController();
 // @route   POST /api/auth/register
 // @desc    Register user
 // @access  Public
-interface AuthRequestBody {
-    username: string;
-    address: string;
-    email: string;
-}
 
 router.post(
-    '/auth',
+    '/register',
     [
         check('username', 'Username is required').not().isEmpty(),
         check('address', 'Address is required').not().isEmpty(),
@@ -26,6 +21,24 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await authController.auth(req, res);
+        } catch (err) {
+            next(err);
+        }
+    }
+);
+
+// @route   GET /api/auth/check/:address
+// @desc    check user
+// @access  Public
+
+router.get(
+    '/check/:address',
+    [
+        check('address', 'Address is required').not().isEmpty(),
+    ],
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            await authController.check(req, res);
         } catch (err) {
             next(err);
         }

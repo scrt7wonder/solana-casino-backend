@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon src/server.ts",
+    "dev": "ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,8 +13,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
     "@solana/web3.js": "^1.98.2",
     "axios": "^1.10.0",
+    "bn.js": "^5.2.2",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
@@ -25,11 +27,13 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.0",
     "morgan": "^1.10.0",
+    "node-cron": "^4.1.0",
     "socket.io": "^4.8.1",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "@types/bn.js": "^5.2.0",
     "@types/body-parser": "^1.19.5",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
@@ -38,6 +42,7 @@
     "@types/mongoose": "^5.11.97",
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.0.3",
+    "@types/node-cron": "^3.0.11",
     "@types/winston": "^2.4.4",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",

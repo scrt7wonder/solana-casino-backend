@@ -1,15 +1,12 @@
 import User from '../models/user';
-import jwt from 'jsonwebtoken';
-import { config } from 'dotenv';
-import { IauthUserDto } from '../types/auth.dto';
 import Refferal from "../models/refferal";
-
-config();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/constants';
+import { IauthUserDto } from '../types/auth.dto';
+import { IUser } from '../types/user';
 
 export class AuthService {
-    public async auth(userData: IauthUserDto) {
+    public async auth(userData: IauthUserDto): Promise<{ token: string, user: IUser }> {
         const { username, address, email, refferal } = userData;
         const saveData = {
             username,
@@ -34,7 +31,7 @@ export class AuthService {
                         {
                             refferal,
                             count: 1,
-                            user_id: refferUser._id,
+                            user_id: refferUser._id.toString(),
                         }
                     )
                     await refferRes.save();
@@ -42,15 +39,24 @@ export class AuthService {
             }
         }
 
-        let user = await User.findOne({ address });
-        if (!user) {
-            // Create new user
-            user = new User(saveData);
-            await user.save();
+        // Create new user
+        const user = new User(saveData);
+        await user.save();
 
+        // Create and return JWT
+        const token = this.generateToken(user._id.toString());
+        return { token, user };
+    }
+
+    public async check(address: string): Promise<{ token: string, user: IUser } | boolean> {
+        const user = await User.findOne({ address });
+        if (!user) {
+            return false;
+        } else {
             // Create and return JWT
-            const token = this.generateToken(user.id);
-            return { token };
+            const token = this.generateToken(user._id.toString());
+
+            return { token, user }
         }
     }
 

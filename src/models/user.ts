@@ -10,7 +10,7 @@ const UserSchema = new Schema<IUser>({
     avatar: {
         type: String,
         required: true,
-        default: "/images/avatars/9fddb4e7b9f48a521886e34bd22474b9ae8da2665a6983b2923f5a3a6e60d81b.jpeg"
+        default: "9fddb4e7b9f48a521886e34bd22474b9ae8da2665a6983b2923f5a3a6e60d81b.jpeg"
     },
     address: {
         type: String,
