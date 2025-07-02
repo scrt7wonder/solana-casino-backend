@@ -10,15 +10,17 @@ import { IUser } from "../types/user";
 import { RoundService } from "./roundService";
 import { sleep } from "../utils/utils";
 import mongoose from "mongoose";
+import cron from 'node-cron';
+import Setting from "../models/setting";
 
 export class GameService {
     public roundService: RoundService;
     public totalBetAmount: number = 0;
     public won: number = 0;
     public chance: number = 0;
-    public game: boolean = true;
+    public game: boolean = false;
     private remainTime: number = 59;
-    private round: number = 8;
+    private round: number = 0;
     private isExpired: boolean = false;
     private monitorRes: boolean = false;
     private socketServer: Namespace;
@@ -33,13 +35,18 @@ export class GameService {
     }
 
     private async init() {
-            // while (true) {
-            //     const res = await this.initialGame(adminKP);
-            //     if (res) {
-            //         return
-            //     }
-            //     await sleep(2000);
-            // }
+        console.log("object")
+        const setting = await Setting.findOne({ name: "solbet" });
+        console.log("🚀 ~ GameService ~ init ~ setting:", setting)
+        if (setting) {
+            this.round = setting.round;
+            this.game = true;
+        } else {
+            const newData = new Setting();
+            await newData.save();
+            this.round = newData.round;
+        }
+        await this.initialGame(adminKP);
     }
 
     private async setupConnection() {
@@ -52,7 +59,7 @@ export class GameService {
             this.sendUpdateRound(socket);
             this.sendUpdateTime(socket);
             this.sendDuration(socket);
-            this.sendPlayer(socket, this.round);
+            this.sendPlayer(socket);
 
             socket.on(EGameEvent.GET_WAGER, async (data: string) => {
                 this.sendWager(socket, this.round, data);
@@ -75,7 +82,7 @@ export class GameService {
                 await historyData.save();
                 console.log("🚀 ~ GameService ~ socket.on ~ historyData:", historyData)
 
-                await this.sendPlayer(socket, data.round);
+                await this.sendPlayer(socket);
             })
 
             socket.on(EGameEvent.IS_EXPIRED, (state: boolean) => {
@@ -93,40 +100,47 @@ export class GameService {
         const round = await fetchRound();
         console.log("🚀 ~ GameService ~ getRound ~ round:", Number(round))
         this.round = Number(round) + 1;
+        await Setting.findOneAndUpdate(
+            { name: "solbet" },
+            { $set: { round: this.round } },
+            { new: true }
+        )
     }
 
-    private async sendPlayer(socket: Socket, round: number) {
+    private async sendPlayer(socket: Socket) {
         try {
-            const aggregationResult = await History.aggregate([
-                {
-                    $match: {
-                        round,
-                        type: "deposite"
+            cron.schedule('*/1 * * * * *', async () => {
+                const aggregationResult = await History.aggregate([
+                    {
+                        $match: {
+                            round: this.round,
+                            type: "deposit"
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            totalPrice: { $sum: "$price" }
+                        }
                     }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        totalPrice: { $sum: "$price" }
-                    }
-                }
-            ]);
+                ]);
 
-            // Default to 0 if no records found
-            const totalAmount = aggregationResult[0]?.totalPrice || 0;
-            console.log("Total amount for round:", totalAmount);
-            this.totalBetAmount = totalAmount;
+                // Default to 0 if no records found
+                const totalAmount = aggregationResult[0]?.totalPrice || 0;
+                console.log("Total amount for round:", totalAmount);
+                this.totalBetAmount = totalAmount;
 
-            const players = await History.find({ round })
-                .populate({
-                    path: 'user_id',
-                    select: 'username avatar email created_at'
+                const players = await History.find({ round: this.round })
+                    .populate({
+                        path: 'user_id',
+                        select: 'username avatar email created_at'
+                    });
+
+                socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, {
+                    players,
+                    totalAmount
                 });
-
-            socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, {
-                players,
-                totalAmount
-            });
+            })
         } catch (error) {
             console.error("Error in sendPlayer:", error);
             // Emit with default values in case of error
@@ -254,10 +268,10 @@ export class GameService {
                 const winner = await fetchWinner(round);
                 return winner
             }
-            return false;
+            return null;
         } catch (error) {
             console.log("🚀 ~ GameService ~ getWinner= ~ error:", error)
-            return false
+            return null
         }
     }
 
@@ -336,6 +350,7 @@ export class GameService {
         try {
             while (true) {
                 console.log("🚀 ~ GameService ~ playGame= ~ this.round:", this.round)
+                console.log("🚀 ~ GameService ~ playGame= ~ this.round:", this.game)
                 // Step 1: Start new game round
                 if (!this.game)
                     this.game = await this.newGame(adminKP, this.round);
@@ -345,6 +360,9 @@ export class GameService {
                     // Step 2: Check deposit monitor status
                     this.monitorRes = await depositMonitor(this.round);
                     console.log("Deposit monitor result:", this.monitorRes);
+                    if (!this.monitorRes) {
+                        this.isExpired = true;
+                    }
 
                     // Step 3: If deposits are ready, start/reset timer
                     if (this.monitorRes && this.remainTime == 59) {
@@ -367,6 +385,7 @@ export class GameService {
                         // Step 6: Process winner
                         this.sendWinner(socket, winnerRes.index);
                         this.chance = winnerRes.deposit / this.totalBetAmount;
+                        console.log("winnerRes.winner => ", winnerRes.winner)
                         const user = await User.findOne({ address: winnerRes.winner.toBase58() })
                         if (user && user._id) {
                             const rewardRes = await this.sendReward(adminKP, winnerRes.winner, this.round);
@@ -411,6 +430,8 @@ export class GameService {
         this.timerInterval = setInterval(() => {
             if (this.remainTime > 0) {
                 this.remainTime--;
+
+                this.socketServer.emit(EGameEvent.UPDATE_REMAIN_TIME, this.remainTime);
 
                 if (this.remainTime === 0) {
                     this.isExpired = true;
