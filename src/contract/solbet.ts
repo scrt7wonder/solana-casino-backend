@@ -92,9 +92,13 @@ export const depositMonitor = async (round: number): Promise<boolean> => {
 
     const currentRound = await program.account.gameRound.fetch(roundPda);
     const deposites = currentRound.deposits;
+    const isExpired = currentRound.isExpired;
     console.log("🚀 ~ depositMonitor ~ deposites:", deposites)
     if (deposites.length >= 1) {
-      return true;
+      if (isExpired) {
+        return false;
+      } else
+        return true;
     }
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
