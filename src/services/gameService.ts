@@ -1,5 +1,5 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
-import { claimReward, createGame, depositMonitor, fetchRound, fetchWinner, getRewardAmount, initialize, setWinner, transferFees } from "../contract/solbet";
+import { claimReward, createGame, depositMonitor, fetchRound, fetchWinner, gameState, getRewardAmount, initialize, setWinner, transferFees } from "../contract/solbet";
 import { adminKP, connection, teamWallet } from "../config/constants";
 import { Namespace, Server, Socket } from "socket.io";
 import { EGameEvent, ESOCKET_NAMESPACE } from "../types/socket";
@@ -20,7 +20,7 @@ export class GameService {
     public chance: number = 0;
     public game: boolean = false;
     private remainTime: number = 59;
-    private round: number = 0;
+    private round: number = 1;
     private isExpired: boolean = false;
     private monitorRes: boolean = false;
     private socketServer: Namespace;
@@ -35,21 +35,35 @@ export class GameService {
     }
 
     private async init() {
-        console.log("object")
+        await this.initialGame(adminKP);
+    }
+
+    private async setupConnection() {
         const setting = await Setting.findOne({ name: "solbet" });
-        console.log("🚀 ~ GameService ~ init ~ setting:", setting)
         if (setting) {
             this.round = setting.round;
-            this.game = true;
+            console.log("🚀 ~ GameService ~ init ~ this.round:", this.round)
+            if (this.round > 1) {
+                const isCompleted = await gameState(this.round);
+                console.log("🚀 ~ GameService ~ init ~ isCompleted:", isCompleted)
+                if (isCompleted) {
+                    this.game = false;
+                } else {
+                    this.game = true;
+                }
+                console.log("🚀 ~ GameService ~ init ~ this.game:", this.game)
+            }
         } else {
             const newData = new Setting();
             await newData.save();
             this.round = newData.round;
         }
-        await this.initialGame(adminKP);
+        
+        this.initialSocket();
     }
-
-    private async setupConnection() {
+    
+    private initialSocket() {
+        console.log("object")
         this.socketServer.on('connection', (socket: Socket) => {
             // Initialize game on first connection
             if (this.socketServer.sockets.size === 1) {
@@ -127,7 +141,6 @@ export class GameService {
 
                 // Default to 0 if no records found
                 const totalAmount = aggregationResult[0]?.totalPrice || 0;
-                console.log("Total amount for round:", totalAmount);
                 this.totalBetAmount = totalAmount;
 
                 const players = await History.find({ round: this.round })
@@ -209,13 +222,14 @@ export class GameService {
                 const { blockhash } = await connection.getRecentBlockhash();
                 transaction.recentBlockhash = blockhash;
                 transaction.feePayer = adminKP.publicKey;
+                console.log("🚀 ~ GameService ~ initialGame= ~ transaction:", transaction)
 
                 // Send transaction and await for signature
                 const signature = await sendAndConfirmTransaction(connection, transaction, [adminKP]);
                 console.log("🚀 ~ GameService ~ initGame= ~ signature:", signature)
                 return true;
             } else {
-                console.log("Deposit failed.")
+                console.log("initial failed.")
                 return false;
             }
         } catch (error) {
