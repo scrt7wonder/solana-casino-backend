@@ -10,12 +10,6 @@ import idl from "./idl/solbet_jackpot.json"
 import { BN } from "bn.js";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import { CONFIG_SEED, connection, PLATFORM_FEE, ROUND_DURATION, ROUND_SEED, teamWallet, VAULT_SEED } from "../config/constants";
-import {
-  networkStateAccountAddress,
-  Orao,
-  randomnessAccountAddress,
-} from "@orao-network/solana-vrf";
-import Setting from "../models/setting";
 
 const privateKey = Keypair.generate();
 const wallet = new NodeWallet(privateKey);
@@ -23,14 +17,6 @@ const provider = new AnchorProvider(connection, wallet, {});
 setProvider(provider);
 const program = new Program(idl) as Program<SolbetJackpotSmartContract>;
 
-const vrf = new Orao(provider);
-let force:Keypair;
-let forceBytes: Buffer;
-let randomPda: PublicKey;
-const networkConfigPda = networkStateAccountAddress();
-const treasury = new PublicKey(
-  "9ZTHWWZDpB36UFe1vszf2KEpt83vwi27jDqtHQ7NSXyR"
-);
 
 const [configPda] = PublicKey.findProgramAddressSync(
   [CONFIG_SEED],
@@ -48,15 +34,15 @@ export const initialize = async (adminPk: PublicKey) => {
   console.log("🚀 ~ program:", program.programId)
   try {
     const initializeIx = await program.methods
-    .initialize({
-      teamWallet: teamWallet,
-      platformFee: new BN(PLATFORM_FEE),
-      roundDuration: new BN(ROUND_DURATION),
-    })
-    .accounts({
-      admin: adminPk,
-    })
-    .instruction();
+      .initialize({
+        teamWallet: teamWallet,
+        platformFee: new BN(PLATFORM_FEE),
+        roundDuration: new BN(ROUND_DURATION),
+      })
+      .accounts({
+        admin: adminPk,
+      })
+      .instruction();
     console.log("✅ Initialize transaction signature:", initializeIx);
     return initializeIx
   } catch (err) {
@@ -71,35 +57,19 @@ export const fetchRound = async () => {
   return round;
 }
 
-export const gameState = async (round: number) => {
-  try {
-    // Derive round PDA
-    const config = await program.account.config.fetch(configPda);
-    const isCompleted = config.isCompleted;
-    return isCompleted;
-  } catch (error) {
-    console.log("🚀 ~ GameState ~ error:", error)
-  }
+export const fetchIsExpired = async (round: number) => {
+  const [roundPda] = PublicKey.findProgramAddressSync(
+      [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
+  const roundAcc = await program.account.gameRound.fetch(roundPda);
+  const isExpired = roundAcc.isExpired;
+  return isExpired;
 }
 
 export const createGame = async (adminPk: PublicKey, round: number) => {
   try {
-    force = Keypair.generate();
-    forceBytes = force.publicKey.toBuffer();
-    randomPda = randomnessAccountAddress(forceBytes);
-
-    const updateSetting = await Setting.findOneAndUpdate(
-      { name: "solbet" },
-      {
-        $set: {
-          forceBytes: force.publicKey.toBuffer(),
-          randomPda: randomPda.toBase58(),
-        },
-      },
-      { new: true, upsert: true }
-    )
-    console.log("🚀 ~ createGame ~ updateSetting:", updateSetting)
-
     // Derive round PDA
     const [roundPda] = PublicKey.findProgramAddressSync(
       [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
@@ -107,18 +77,15 @@ export const createGame = async (adminPk: PublicKey, round: number) => {
     );
 
     const createGameIx = await program.methods
-      .createGame([...forceBytes], new BN(round))
+      .createGame(new BN(round))
       .accountsStrict({
         admin: adminPk,
         config: configPda,
         roundAcc: roundPda,
-        networkConfig: networkConfigPda,
-        random: randomPda,
-        treasury: treasury,
-        vrf: vrf.programId,
         systemProgram: SystemProgram.programId
       })
       .instruction();
+
     console.log("✅ Create Game transaction:", createGameIx);
     return createGameIx
   } catch (error) {
@@ -135,11 +102,10 @@ export const depositMonitor = async (round: number): Promise<boolean> => {
     );
 
     const currentRound = await program.account.gameRound.fetch(roundPda);
-    const deposites = currentRound.deposits;
+    const deposits = currentRound.deposits;
     const isExpired = currentRound.isExpired;
-    console.log("🚀 ~ depositMonitor ~ isExpired:", isExpired)
-    console.log("🚀 ~ depositMonitor ~ deposites:", deposites)
-    if (deposites.length >= 1) {
+    console.log("🚀 ~ depositMonitor ~ deposits:", deposits)
+    if (deposits.length >= 1) {
       if (isExpired) {
         return false;
       } else
@@ -199,25 +165,13 @@ export const setWinner = async (adminPk: PublicKey, round: number) => {
       [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
       program.programId
     );
-    
-    if (!randomPda || !forceBytes) {
-      const setting = await Setting.findOne({ name: "solbet" });
-      if (!setting) {
-        throw new Error("Force bytes not found in settings");
-      }
-      forceBytes = setting.forceBytes;
-      randomPda = new PublicKey(setting.randomPda);
-    }
-    console.log("🚀 ~ setWinner ~ forceBytes:", forceBytes)
-    console.log("🚀 ~ setWinner ~ randomPda:", randomPda)
-    
+
     const setWinnerIx = await program.methods
-      .setWinner([...forceBytes], new BN(round))
+      .setWinner(new BN(round))
       .accountsStrict({
         admin: adminPk,
         config: configPda,
         roundAcc: roundPda,
-        random: randomPda,
       })
       .instruction();
 

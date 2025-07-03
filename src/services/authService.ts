@@ -48,6 +48,14 @@ export class AuthService {
         return { token, user };
     }
 
+    public async updateAuth(id: string, updateData: any): Promise<IUser> {
+        return await User.findOneAndUpdate(
+            { _id: id },
+            { $set: updateData },
+            { new: true, upsert: true }
+        )
+    }
+
     public async check(address: string): Promise<{ token: string, user: IUser } | boolean> {
         const user = await User.findOne({ address });
         if (!user) {

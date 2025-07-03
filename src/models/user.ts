@@ -10,7 +10,7 @@ const UserSchema = new Schema<IUser>({
     avatar: {
         type: String,
         required: true,
-        default: "9fddb4e7b9f48a521886e34bd22474b9ae8da2665a6983b2923f5a3a6e60d81b.jpeg"
+        default: "https://ipfs.io/ipfs/QmTKQmu1xykpcK1GbAGkeZuq4MgsVsAw8GvpEcqm8Kvs8r"
     },
     address: {
         type: String,

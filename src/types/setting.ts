@@ -5,4 +5,5 @@ export interface ISetting extends Document {
     round: number;
     forceBytes: Buffer;
     randomPda: string;
+    totalAmount: number;
 }
