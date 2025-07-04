@@ -18,7 +18,7 @@ export class RoundService {
         const winner = await Round.findOne({ round })
             .populate({
                 path: 'user_id',
-                select: 'username avatar email'
+                select: 'username avatar email created_at'
             });
 
         if (winner)
@@ -34,7 +34,7 @@ export class RoundService {
             create_at: { $gte: daysAgo }
         }).populate({
             path: 'user_id',
-            select: 'username avatar email'
+            select: 'username avatar email created_at'
         }).sort({ won: 1 });
 
         return winner[0];

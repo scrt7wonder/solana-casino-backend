@@ -57,6 +57,17 @@ export const fetchRound = async () => {
   return round;
 }
 
+export const fetchIsExpired = async (round: number) => {
+  const [roundPda] = PublicKey.findProgramAddressSync(
+      [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
+  const roundAcc = await program.account.gameRound.fetch(roundPda);
+  const isExpired = roundAcc.isExpired;
+  return isExpired;
+}
+
 export const createGame = async (adminPk: PublicKey, round: number) => {
   try {
     // Derive round PDA
@@ -91,10 +102,10 @@ export const depositMonitor = async (round: number): Promise<boolean> => {
     );
 
     const currentRound = await program.account.gameRound.fetch(roundPda);
-    const deposites = currentRound.deposits;
+    const deposits = currentRound.deposits;
     const isExpired = currentRound.isExpired;
-    console.log("🚀 ~ depositMonitor ~ deposites:", deposites)
-    if (deposites.length >= 1) {
+    console.log("🚀 ~ depositMonitor ~ deposits:", deposits)
+    if (deposits.length >= 1) {
       if (isExpired) {
         return false;
       } else

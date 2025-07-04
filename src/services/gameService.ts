@@ -1,5 +1,5 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
-import { claimReward, createGame, depositMonitor, fetchRound, fetchWinner, getRewardAmount, initialize, setWinner, transferFees } from "../contract/solbet";
+import { claimReward, createGame, depositMonitor, fetchIsExpired, fetchRound, fetchWinner, getRewardAmount, initialize, setWinner, transferFees } from "../contract/solbet";
 import { adminKP, connection, teamWallet } from "../config/constants";
 import { Namespace, Server, Socket } from "socket.io";
 import { EGameEvent, ESOCKET_NAMESPACE } from "../types/socket";
@@ -8,9 +8,10 @@ import History from "../models/history";
 import User from "../models/user";
 import { IUser } from "../types/user";
 import { RoundService } from "./roundService";
-import { sleep } from "../utils/utils";
+import { getSolPrice, sleep } from "../utils/utils";
+import cron from 'node-cron'
 import mongoose from "mongoose";
-import cron from 'node-cron';
+import logger from "../utils/logger";
 import Setting from "../models/setting";
 
 export class GameService {
@@ -18,14 +19,17 @@ export class GameService {
     public totalBetAmount: number = 0;
     public won: number = 0;
     public chance: number = 0;
+    public solPrice: number = 0;
     public game: boolean = false;
+    public rewardRes: boolean = true;
+    public feeRes: boolean = false;
     private remainTime: number = 59;
-    private round: number = 0;
+    private round: number = 1;
     private isExpired: boolean = false;
     private monitorRes: boolean = false;
     private socketServer: Namespace;
     private timerInterval: NodeJS.Timeout | null = null;
-
+    private totalAmount: number = 0;
 
     constructor(socketServer: Server) {
         this.socketServer = socketServer.of(ESOCKET_NAMESPACE.game);
@@ -35,12 +39,21 @@ export class GameService {
     }
 
     private async init() {
-        console.log("object")
         const setting = await Setting.findOne({ name: "solbet" });
-        console.log("🚀 ~ GameService ~ init ~ setting:", setting)
         if (setting) {
             this.round = setting.round;
-            this.game = true;
+            this.totalAmount = setting.totalAmount;
+            if (this.round > 0) {
+                const isExpired = await fetchIsExpired(this.round);
+                console.log("🚀 ~ GameService ~ init ~ isExpired:", isExpired)
+                if (isExpired) {
+                    this.game = false;
+                    this.isExpired = true;
+                    this.remainTime = 0;
+                } else {
+                    this.game = true;
+                }
+            }
         } else {
             const newData = new Setting();
             await newData.save();
@@ -54,6 +67,7 @@ export class GameService {
             // Initialize game on first connection
             if (this.socketServer.sockets.size === 1) {
                 this.playGame(socket, adminKP, teamWallet)
+                this.sendSolPrice(socket);
             }
 
             this.sendUpdateRound(socket);
@@ -66,7 +80,6 @@ export class GameService {
             })
 
             socket.on(EGameEvent.SAVE_HISTORY, async (data: IHistory) => {
-                console.log("🚀 ~ GameService ~ socket.on ~ data:", data)
                 const { sig, price, type, status, create_at, round, user_id } = data;
 
                 const saveData = {
@@ -80,7 +93,14 @@ export class GameService {
                 }
                 const historyData = new History(saveData);
                 await historyData.save();
-                console.log("🚀 ~ GameService ~ socket.on ~ historyData:", historyData)
+
+                this.totalAmount += Math.floor(price * LAMPORTS_PER_SOL);
+
+                await Setting.findOneAndUpdate(
+                    { name: "solbet" },
+                    { $set: { totalAmount: this.totalAmount } },
+                    { upsert: true, new: true }
+                )
 
                 await this.sendPlayer(socket);
             })
@@ -96,20 +116,34 @@ export class GameService {
         });
     }
 
+    private async sendSolPrice(socket: Socket) {
+        try {
+            cron.schedule('*/15 * * * * *', async () => {
+                const solPrice = await getSolPrice();
+                console.log("solprice => ", solPrice);
+                if (solPrice)
+                    this.solPrice = solPrice;
+                socket.emit(EGameEvent.SOL_PRICE, this.solPrice);
+            })
+        } catch (error) {
+            logger.error(`Error starting socket server: ${error}`)
+        }
+    }
+
     private async getRound() {
         const round = await fetchRound();
-        console.log("🚀 ~ GameService ~ getRound ~ round:", Number(round))
         this.round = Number(round) + 1;
+
         await Setting.findOneAndUpdate(
             { name: "solbet" },
             { $set: { round: this.round } },
-            { new: true }
+            { upsert: true, new: true }
         )
     }
 
     private async sendPlayer(socket: Socket) {
         try {
-            cron.schedule('*/1 * * * * *', async () => {
+            cron.schedule('*/10 * * * * *', async () => {
                 const aggregationResult = await History.aggregate([
                     {
                         $match: {
@@ -126,9 +160,8 @@ export class GameService {
                 ]);
 
                 // Default to 0 if no records found
-                const totalAmount = aggregationResult[0]?.totalPrice || 0;
-                console.log("Total amount for round:", totalAmount);
-                this.totalBetAmount = totalAmount;
+                const totalBetAmount = aggregationResult[0]?.totalPrice || 0;
+                this.totalBetAmount = totalBetAmount;
 
                 const players = await History.find({ round: this.round })
                     .populate({
@@ -138,15 +171,16 @@ export class GameService {
 
                 socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, {
                     players,
-                    totalAmount
+                    totalBetAmount,
+                    totalAmount: this.totalAmount
                 });
             })
         } catch (error) {
-            console.error("Error in sendPlayer:", error);
             // Emit with default values in case of error
             socket.emit(EGameEvent.UPDATE_TOTAL_AMOUNT, {
                 players: [],
-                totalAmount: 0
+                totalBetAmount: this.totalBetAmount,
+                totalAmount: this.totalBetAmount
             });
         }
     }
@@ -157,7 +191,7 @@ export class GameService {
                 {
                     $match: {
                         round,
-                        type: "deposite",
+                        type: "deposit",
                         user_id: new mongoose.Types.ObjectId(user_id)
                     }
                 },
@@ -171,7 +205,6 @@ export class GameService {
 
             // Default to 0 if no records found
             const wager = aggregationResult[0]?.totalPrice || 0;
-            console.log("Total amount for wager:", wager);
 
             socket.emit(EGameEvent.WAGER, wager);
         } catch (error) {
@@ -184,12 +217,10 @@ export class GameService {
     }
 
     private async sendUpdateTime(socket: Socket) {
-        console.log("🚀 ~ GameService ~ sendDuration ~ monitorRes:", this.remainTime)
         socket.emit(EGameEvent.UPDATE_REMAIN_TIME, this.remainTime);
     }
 
     private async sendDuration(socket: Socket) {
-        console.log("🚀 ~ GameService ~ sendDuration ~ this.monitorRes:", this.monitorRes)
         socket.emit(EGameEvent.DURATION_STATE, this.monitorRes);
     }
 
@@ -219,7 +250,6 @@ export class GameService {
                 return false;
             }
         } catch (error) {
-            console.log("🚀 ~ GameService ~ initGame= ~ error:", error)
             return false;
         }
     }
@@ -244,7 +274,6 @@ export class GameService {
             }
             return false;
         } catch (error) {
-            console.log("🚀 ~ GameService ~ newGame= ~ error:", error)
             return false;
         }
     }
@@ -270,7 +299,6 @@ export class GameService {
             }
             return null;
         } catch (error) {
-            console.log("🚀 ~ GameService ~ getWinner= ~ error:", error)
             return null
         }
     }
@@ -292,7 +320,6 @@ export class GameService {
                 console.log("🚀 ~ GameService ~ sendReward= ~ signature:", signature)
                 if (signature) {
                     const reward = await getRewardAmount(round);
-                    console.log("🚀 ~ GameService ~ sendReward= ~ reward:", reward)
                     this.won = reward / LAMPORTS_PER_SOL;
                     const user: IUser | null = await User.findOne({ address: winner.toBase58() })
                     if (user) {
@@ -317,7 +344,6 @@ export class GameService {
             }
             return false;
         } catch (error) {
-            console.log("🚀 ~ GameService ~ sendReward= ~ error:", error)
             return false;
         }
     }
@@ -341,7 +367,6 @@ export class GameService {
             }
             return false;
         } catch (error) {
-            console.log("🚀 ~ GameService ~ sendReward= ~ error:", error)
             return false;
         }
     }
@@ -350,10 +375,12 @@ export class GameService {
         try {
             while (true) {
                 console.log("🚀 ~ GameService ~ playGame= ~ this.round:", this.round)
-                console.log("🚀 ~ GameService ~ playGame= ~ this.round:", this.game)
+                console.log("🚀 ~ GameService ~ playGame= ~ this.game:", this.game)
                 // Step 1: Start new game round
-                if (!this.game)
-                    this.game = await this.newGame(adminKP, this.round);
+                if (!this.game) {
+                    const res = await this.newGame(adminKP, this.round);
+                    this.game = res;
+                }
                 if (this.game) {
                     this.sendUpdateRound(socket);
 
@@ -383,15 +410,17 @@ export class GameService {
 
                     if (winnerRes) {
                         // Step 6: Process winner
-                        this.sendWinner(socket, winnerRes.index);
-                        this.chance = winnerRes.deposit / this.totalBetAmount;
-                        console.log("winnerRes.winner => ", winnerRes.winner)
+                        // this.sendWinner(socket, winnerRes.index);
+                        this.socketServer.emit(EGameEvent.WINNER, winnerRes.index);
+                        this.chance = winnerRes.deposit / this.totalBetAmount * 100;
                         const user = await User.findOne({ address: winnerRes.winner.toBase58() })
                         if (user && user._id) {
-                            const rewardRes = await this.sendReward(adminKP, winnerRes.winner, this.round);
-                            if (rewardRes) {
-                                const feeRes = await this.gatherFees(teamWallet, adminKP, this.round);
-                                if (feeRes) {
+                            if (!this.rewardRes)
+                                this.rewardRes = await this.sendReward(adminKP, winnerRes.winner, this.round);
+                            if (this.rewardRes) {
+                                if (!this.feeRes)
+                                    this.feeRes = await this.gatherFees(teamWallet, adminKP, this.round);
+                                if (this.feeRes) {
                                     await this.roundService.saveWinner(
                                         this.round,
                                         this.won,
@@ -405,9 +434,13 @@ export class GameService {
                                     this.isExpired = false;
                                     this.remainTime = 59;
                                     this.game = false;
+                                    this.rewardRes = false;
+                                    this.feeRes = false;
 
                                     // Notify clients of new round
-                                    this.sendUpdateRound(socket);
+                                    // this.sendUpdateRound(socket);
+                                    console.log("🚀 ~ GameService ~ playGame= ~ this.round:", this.round)
+                                    this.socketServer.emit(EGameEvent.UPDATE_ROUND, this.round);
                                 }
                             }
                         }

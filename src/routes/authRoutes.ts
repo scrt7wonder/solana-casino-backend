@@ -27,6 +27,24 @@ router.post(
     }
 );
 
+// @route   POST /api/auth/update
+// @desc    Update user
+// @access  Public
+
+router.post(
+    '/update',
+    [
+        check('id', 'id is required').not().isEmpty(),
+    ],
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            await authController.updateAuth(req, res);
+        } catch (err) {
+            next(err);
+        }
+    }
+);
+
 // @route   GET /api/auth/check/:address
 // @desc    check user
 // @access  Public

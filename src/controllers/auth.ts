@@ -26,6 +26,22 @@ export class AuthController {
         }
     };
 
+    public updateAuth = async (req: Request, res: Response): Promise<Response> => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        try {
+            const {id, ...updateData} = req.body;
+            console.log("🚀 ~ AuthController ~ auth= ~ userData:", updateData)
+            const user = await this.authService.updateAuth(id, updateData);
+            return res.status(201).json(user);
+        } catch (error) {
+            return res.status(400).json({ message: (error as Error).message });
+        }
+    };
+
     public check = async (req: Request, res: Response): Promise<Response> => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
