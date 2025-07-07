@@ -35,7 +35,7 @@ export class RoundService {
         }).populate({
             path: 'user_id',
             select: 'username avatar email created_at'
-        }).sort({ won: 1 });
+        }).sort({ chance: -1 });
 
         return winner[0];
     }

@@ -1,5 +1,5 @@
 import History from '../models/history';
-import { IHistory, IntervalResult } from '../types/history';
+import { IDurationHistory, IHistory, IntervalResult } from '../types/history';
 
 export class HistoryService {
     public async getHistory(user_id: string, page: number = 1): Promise<{
@@ -28,11 +28,55 @@ export class HistoryService {
         };
     }
 
-    public async getChartData(user_id: string, duringDate: string): Promise<IntervalResult[]> {
+    public async getChartData(user_id: string, duringDate: string): Promise<IDurationHistory> {
         let historyData: IHistory[];
+        let totalDeposit = 0;
+        let totalReward = 0;
+        let biggestWin = 0;
+        let luckiestWin = 0;
         const date = duringDate.split(" ")[1]
         if (date == "Time") {
             historyData = await History.find({ user_id });
+            const depositsRes = await History.aggregate([
+                {
+                    $match: {
+                        user_id,
+                        type: "deposit"
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalDeposit: { $sum: "$price" }
+                    }
+                }
+            ])
+            totalDeposit = depositsRes.length > 0 ? depositsRes[0].totalDeposit : 0;
+
+            const rewardRes = await History.aggregate([
+                {
+                    $match: {
+                        user_id,
+                        type: "reward"
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalReward: { $sum: "$price" }
+                    }
+                }
+            ])
+            totalReward = rewardRes.length > 0 ? rewardRes[0].totalDeposit : 0;
+
+            const biggestWinRes = await History.find({ user_id, type: "reward" }).sort({ price: -1 }).limit(1);
+            biggestWin = biggestWinRes.length > 0 ? biggestWinRes[0].price : 0;
+
+            const luckiest = await History.find({
+                user_id,
+                type: "reward",
+            }).sort({ profit: -1 }).limit(1);
+            luckiestWin = luckiest.length > 0 ? luckiest[0].profit : 0;
         } else {
             const daysAgo = new Date();
             daysAgo.setDate(daysAgo.getDate() - Number(date));
@@ -41,9 +85,56 @@ export class HistoryService {
                 user_id,
                 create_at: { $gte: daysAgo }
             }).sort({ created_at: 1 });
+            const depositsRes = await History.aggregate([
+                {
+                    $match: {
+                        user_id,
+                        type: "deposit",
+                        create_at: { $gte: daysAgo }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalDeposit: { $sum: "$price" }
+                    }
+                }
+            ])
+            totalDeposit = depositsRes.length > 0 ? depositsRes[0].totalDeposit : 0;
+
+            const rewardRes = await History.aggregate([
+                {
+                    $match: {
+                        user_id,
+                        type: "reward",
+                        create_at: { $gte: daysAgo }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalReward: { $sum: "$price" }
+                    }
+                }
+            ])
+            totalReward = rewardRes.length > 0 ? rewardRes[0].totalDeposit : 0;
+
+            const biggestWinRes = await History.find({
+                user_id,
+                type: "reward",
+                create_at: { $gte: daysAgo }
+            }).sort({ price: -1 }).limit(1);
+            biggestWin = biggestWinRes.length > 0 ? biggestWinRes[0].price : 0;
+
+            const luckiest = await History.find({
+                user_id,
+                type: "reward",
+                create_at: { $gte: daysAgo }
+            }).sort({ profit: -1 }).limit(1);
+            luckiestWin = luckiest.length > 0 ? luckiest[0].profit : 0;
         }
         const ohlcData = this.processIntervals(historyData);
-        return ohlcData
+        return { ohlcData, totalDeposit, totalReward, biggestWin, luckiestWin }
     }
 
     private processIntervals(data: IHistory[]): IntervalResult[] {

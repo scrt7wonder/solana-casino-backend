@@ -43,7 +43,6 @@ export const initialize = async (adminPk: PublicKey) => {
         admin: adminPk,
       })
       .instruction();
-    console.log("✅ Initialize transaction signature:", initializeIx);
     return initializeIx
   } catch (err) {
     console.log("Config already initialized, verifying: ", (err as Error).message);
@@ -65,6 +64,7 @@ export const fetchIsExpired = async (round: number) => {
 
   const roundAcc = await program.account.gameRound.fetch(roundPda);
   const isExpired = roundAcc.isExpired;
+  console.log("🚀 ~ fetchIsExpired ~ isExpired:", isExpired)
   return isExpired;
 }
 
@@ -86,7 +86,6 @@ export const createGame = async (adminPk: PublicKey, round: number) => {
       })
       .instruction();
 
-    console.log("✅ Create Game transaction:", createGameIx);
     return createGameIx
   } catch (error) {
     console.log("🚀 ~ createGame ~ error:", error)
@@ -133,8 +132,6 @@ export const joinGame = async (userPk: PublicKey, round: number, depositsAmount:
         vault: vaultPda
       })
       .instruction();
-    console.log("🚀 ~ joinGame ~ depositIx:", depositIx)
-
     return depositIx
   } catch (error) {
     console.log("🚀 ~ joinGame ~ error:", error)
@@ -174,8 +171,6 @@ export const setWinner = async (adminPk: PublicKey, round: number) => {
         roundAcc: roundPda,
       })
       .instruction();
-
-    console.log("🏆 Set Winner TX:", setWinnerIx);
     return setWinnerIx;
   } catch (error) {
     console.log("🚀 ~ setWinner ~ error:", error)
@@ -235,7 +230,6 @@ export const getRewardAmount = async (round: number): Promise<number> => {
   );
 
   const currentRound = await program.account.gameRound.fetch(roundPda);
-  console.log("🚀 ~ getRewardAmount ~ currentRound:", currentRound)
   console.log("🚀 ~ getRewardAmount ~ currentRound.totalAmount:", currentRound.totalAmount)
   const reward = Number(currentRound.totalAmount) * (10000 - PLATFORM_FEE) / 10000;
   console.log("🚀 ~ getRewardAmount ~ reward:", reward)

@@ -31,7 +31,7 @@ export class AuthService {
                         {
                             refferal,
                             count: 1,
-                            user_id: refferUser._id.toString(),
+                            user_id: refferUser._id,
                         }
                     )
                     await refferRes.save();

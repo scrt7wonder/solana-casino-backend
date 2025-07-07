@@ -20,8 +20,8 @@ export class GameService {
     public won: number = 0;
     public chance: number = 0;
     public solPrice: number = 0;
-    public game: boolean = false;
-    public rewardRes: boolean = true;
+    public game: boolean = true;
+    public rewardRes: boolean = false;
     public feeRes: boolean = false;
     private remainTime: number = 59;
     private round: number = 1;
@@ -35,15 +35,15 @@ export class GameService {
         this.socketServer = socketServer.of(ESOCKET_NAMESPACE.game);
         this.roundService = new RoundService();
         this.init();
-        this.setupConnection();
     }
 
     private async init() {
+        await this.initialGame(adminKP);
         const setting = await Setting.findOne({ name: "solbet" });
         if (setting) {
             this.round = setting.round;
             this.totalAmount = setting.totalAmount;
-            if (this.round > 0) {
+            if (this.round > 1) {
                 const isExpired = await fetchIsExpired(this.round);
                 console.log("🚀 ~ GameService ~ init ~ isExpired:", isExpired)
                 if (isExpired) {
@@ -59,7 +59,7 @@ export class GameService {
             await newData.save();
             this.round = newData.round;
         }
-        await this.initialGame(adminKP);
+        this.setupConnection();
     }
 
     private async setupConnection() {
@@ -231,6 +231,7 @@ export class GameService {
     public initialGame = async (adminKP: Keypair) => {
         try {
             const initialIx = await initialize(adminKP.publicKey);
+            console.log("🚀 ~ GameService ~ initialGame= ~ initialIx:", initialIx)
 
             if (initialIx) {
                 const transaction = new Transaction()
@@ -257,6 +258,7 @@ export class GameService {
     public newGame = async (adminKP: Keypair, round: number) => {
         try {
             const createGameIx = await createGame(adminKP.publicKey, round);
+            console.log("🚀 ~ GameService ~ newGame= ~ createGameIx:", createGameIx)
             if (createGameIx) {
                 const transaction = new Transaction()
                     .add(createGameIx)
@@ -303,47 +305,71 @@ export class GameService {
         }
     }
 
-    public sendReward = async (adminKP: Keypair, winner: PublicKey, round: number) => {
+    public sendReward = async (
+        adminKP: Keypair,
+        winnerData: {
+            winner: PublicKey;
+            deposit: number;
+            index: number;
+        },
+        round: number) => {
         try {
-            const claimRewardIx = await claimReward(adminKP.publicKey, winner, round);
+            const claimRewardIx = await claimReward(adminKP.publicKey, winnerData.winner, round);
+            console.log("🚀 ~ GameService ~ adminKP.publicKey:", adminKP.publicKey)
             if (claimRewardIx) {
-                const transaction = new Transaction()
-                    .add(claimRewardIx)
+                try {
+                    const transaction = new Transaction()
+                        .add(claimRewardIx)
 
-                // Get recent blockhash
-                const { blockhash } = await connection.getRecentBlockhash();
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = adminKP.publicKey;
+                    // Get recent blockhash
+                    const { blockhash } = await connection.getRecentBlockhash();
+                    transaction.recentBlockhash = blockhash;
+                    transaction.feePayer = adminKP.publicKey;
 
-                // Send transaction and await for signature
-                const signature = await sendAndConfirmTransaction(connection, transaction, [adminKP]);
-                console.log("🚀 ~ GameService ~ sendReward= ~ signature:", signature)
-                if (signature) {
-                    const reward = await getRewardAmount(round);
-                    this.won = reward / LAMPORTS_PER_SOL;
-                    const user: IUser | null = await User.findOne({ address: winner.toBase58() })
-                    if (user) {
-                        const saveData = {
-                            sig: signature,
-                            price: reward / LAMPORTS_PER_SOL,
-                            type: "reward",
-                            status: "success",
-                            create_at: new Date(),
-                            round,
-                            user_id: user._id
+                    // Send transaction and await for signature
+                    const signature = await sendAndConfirmTransaction(connection, transaction, [adminKP], { skipPreflight: true });
+                    console.log("🚀 ~ GameService ~ sendReward= ~ signature:", signature)
+                    if (signature) {
+                        try {
+                            const reward = await getRewardAmount(round);
+                            this.won = reward / LAMPORTS_PER_SOL;
+                            const user: IUser | null = await User.findOne({ address: winnerData.winner.toBase58() })
+                            if (user) {
+                                const saveData = {
+                                    sig: signature,
+                                    price: reward / LAMPORTS_PER_SOL,
+                                    type: "reward",
+                                    status: "success",
+                                    create_at: new Date(),
+                                    round,
+                                    profit: reward / winnerData.deposit,
+                                    user_id: user._id
+                                }
+                                const historyData = new History(saveData);
+                                await historyData.save();
+                                return true;
+                            } else {
+                                console.log("Can not find user!");
+                                return false;
+                            }
+                        } catch (error) {
+                            console.log("🚀 ~ GameService ~ error:", error)
+                            return false;
                         }
-                        const historyData = new History(saveData);
-                        await historyData.save();
-                        return true;
                     } else {
-                        console.log("Can not find user!");
+                        console.log("Transaction failed to send.");
                         return false;
                     }
+                } catch (error) {
+                    console.error("Error sending reward transaction:", error);
+                    return false;
                 }
+            } else {
+                console.log("Claim reward failed.");
                 return false;
             }
-            return false;
         } catch (error) {
+            console.log("🚀 ~ GameService ~ error:", error)
             return false;
         }
     }
@@ -352,20 +378,27 @@ export class GameService {
         try {
             const transferFeesIx = await transferFees(teamWallet, adminKP.publicKey, round);
             if (transferFeesIx) {
-                const transaction = new Transaction()
-                    .add(transferFeesIx)
+                try {
+                    const transaction = new Transaction()
+                        .add(transferFeesIx)
 
-                // Get recent blockhash
-                const { blockhash } = await connection.getRecentBlockhash();
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = adminKP.publicKey;
+                    // Get recent blockhash
+                    const { blockhash } = await connection.getRecentBlockhash();
+                    transaction.recentBlockhash = blockhash;
+                    transaction.feePayer = adminKP.publicKey;
 
-                // Send transaction and await for signature
-                const signature = await sendAndConfirmTransaction(connection, transaction, [adminKP]);
-                console.log("🚀 ~ GameService ~ gatherFees= ~ signature:", signature)
-                return true;
+                    // Send transaction and await for signature
+                    const signature = await sendAndConfirmTransaction(connection, transaction, [adminKP]);
+                    console.log("🚀 ~ GameService ~ gatherFees= ~ signature:", signature)
+                    return true;
+                } catch (error) {
+                    console.error("Error gathering fees transaction:", error);
+                    return false;
+                }
+            } else {
+                console.log("Gather fees failed.");
+                return false;
             }
-            return false;
         } catch (error) {
             return false;
         }
@@ -415,12 +448,13 @@ export class GameService {
                         this.chance = winnerRes.deposit / this.totalBetAmount * 100;
                         const user = await User.findOne({ address: winnerRes.winner.toBase58() })
                         if (user && user._id) {
-                            if (!this.rewardRes)
-                                this.rewardRes = await this.sendReward(adminKP, winnerRes.winner, this.round);
-                            if (this.rewardRes) {
-                                if (!this.feeRes)
-                                    this.feeRes = await this.gatherFees(teamWallet, adminKP, this.round);
-                                if (this.feeRes) {
+                            console.log("🚀 ~ GameService ~ playGame= ~ user:", user._id)
+                            if (!this.feeRes)
+                                this.feeRes = await this.gatherFees(teamWallet, adminKP, this.round);
+                            if (this.feeRes) {
+                                if (!this.rewardRes)
+                                    this.rewardRes = await this.sendReward(adminKP, winnerRes, this.round);
+                                if (this.rewardRes) {
                                     await this.roundService.saveWinner(
                                         this.round,
                                         this.won,
