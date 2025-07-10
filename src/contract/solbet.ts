@@ -5,17 +5,17 @@ import {
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
-import { SolbetJackpotSmartContract } from "./idl/solbet_jackpot";
+import { SolbetJackpotContract } from "./idl/solbet_jackpot";
 import idl from "./idl/solbet_jackpot.json"
 import { BN } from "bn.js";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
-import { CONFIG_SEED, connection, PLATFORM_FEE, ROUND_DURATION, ROUND_SEED, teamWallet, VAULT_SEED } from "../config/constants";
+import { AFFILIATE_FEE, CONFIG_SEED, connection, PLATFORM_FEE, ROUND_DURATION, ROUND_SEED, teamWallet, VAULT_SEED } from "../config/constants";
 
 const privateKey = Keypair.generate();
 const wallet = new NodeWallet(privateKey);
 const provider = new AnchorProvider(connection, wallet, {});
 setProvider(provider);
-const program = new Program(idl) as Program<SolbetJackpotSmartContract>;
+const program = new Program(idl) as Program<SolbetJackpotContract>;
 
 
 const [configPda] = PublicKey.findProgramAddressSync(
@@ -37,6 +37,7 @@ export const initialize = async (adminPk: PublicKey) => {
       .initialize({
         teamWallet: teamWallet,
         platformFee: new BN(PLATFORM_FEE),
+        affiliate: new BN(AFFILIATE_FEE),
         roundDuration: new BN(ROUND_DURATION),
       })
       .accounts({
@@ -114,7 +115,7 @@ export const depositMonitor = async (round: number): Promise<boolean> => {
   }
 }
 
-export const joinGame = async (userPk: PublicKey, round: number, depositsAmount: number) => {
+export const joinGame = async (userPk: PublicKey, referPK: PublicKey, round: number, depositsAmount: number) => {
   try {
     // Derive round PDA
     const [roundPda] = PublicKey.findProgramAddressSync(
@@ -129,6 +130,7 @@ export const joinGame = async (userPk: PublicKey, round: number, depositsAmount:
         config: configPda,
         roundAcc: roundPda,
         systemProgram: SystemProgram.programId,
+        affiliateRefer: referPK,
         vault: vaultPda
       })
       .instruction();
@@ -177,7 +179,7 @@ export const setWinner = async (adminPk: PublicKey, round: number) => {
   }
 }
 
-export const fetchWinner = async (round: number): Promise<{ winner: PublicKey; deposit: number; index: number }> => {
+export const fetchWinner = async (round: number): Promise<{ winner: PublicKey; deposit: number; index: number, referral: PublicKey }> => {
   while (true) {
     console.log("🚀 ~ fetchWinner ~ round:", round)
     // Derive round PDA
@@ -190,8 +192,9 @@ export const fetchWinner = async (round: number): Promise<{ winner: PublicKey; d
     const winner = currentRound.winner;
     const deposit = Number(currentRound.winnerDepositAmount) / LAMPORTS_PER_SOL;
     const index = Number(currentRound.winnerIndex);
-    if (winner) {
-      return { winner, deposit, index };
+    const referral = currentRound.affiliateRefer;
+    if (winner && referral) {
+      return { winner, deposit, index, referral };
     }
   }
 }
@@ -236,7 +239,7 @@ export const getRewardAmount = async (round: number): Promise<number> => {
   return reward
 }
 
-export const transferFees = async (teamWalPk: PublicKey, adminPk: PublicKey, round: number) => {
+export const transferFees = async (teamWalPk: PublicKey, adminPk: PublicKey, referralPK: PublicKey, round: number) => {
   // Derive round PDA
   const [roundPda] = PublicKey.findProgramAddressSync(
     [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
@@ -251,6 +254,7 @@ export const transferFees = async (teamWalPk: PublicKey, adminPk: PublicKey, rou
       config: configPda,
       roundAcc: roundPda,
       systemProgram: SystemProgram.programId,
+      affiliateRefer: referralPK,
       vault: vaultPda
     })
     .instruction();

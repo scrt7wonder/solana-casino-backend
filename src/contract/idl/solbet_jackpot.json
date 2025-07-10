@@ -1,7 +1,7 @@
 {
-  "address": "BjvVkQEhQNzfUHH32giLQQsvT6JHU9MfJV1hYg1V6DGa",
+  "address": "6enDEXd1jNACrecvEjhAdCAc7Re9hsQYUZbXceH4kEj6",
   "metadata": {
-    "name": "solbet_jackpot_smart_contract",
+    "name": "solbet_jackpot_contract",
     "version": "0.1.0",
     "spec": "0.1.0",
     "description": "Created with Anchor"
@@ -345,6 +345,10 @@
           }
         },
         {
+          "name": "affiliate_refer",
+          "writable": true
+        },
+        {
           "name": "user",
           "writable": true,
           "signer": true
@@ -509,6 +513,10 @@
           "writable": true
         },
         {
+          "name": "affiliate_refer",
+          "writable": true
+        },
+        {
           "name": "round_acc",
           "writable": true,
           "pda": {
@@ -628,11 +636,21 @@
     },
     {
       "code": 6009,
+      "name": "RoundIsNotCompleted",
+      "msg": "The Round is not completed"
+    },
+    {
+      "code": 6010,
+      "name": "DepositIsSmall",
+      "msg": "Deposite amount is too small"
+    },
+    {
+      "code": 6011,
       "name": "NotWinner",
       "msg": "Not Winner"
     },
     {
-      "code": 6010,
+      "code": 6012,
       "name": "WinnerNotSet",
       "msg": "Winner not set"
     }
@@ -657,6 +675,10 @@
           },
           {
             "name": "platform_fee",
+            "type": "u64"
+          },
+          {
+            "name": "affiliate",
             "type": "u64"
           },
           {
@@ -688,6 +710,10 @@
             "type": "u64"
           },
           {
+            "name": "affiliate",
+            "type": "u64"
+          },
+          {
             "name": "round_duration",
             "type": "i64"
           }
@@ -706,6 +732,10 @@
           {
             "name": "amount",
             "type": "u64"
+          },
+          {
+            "name": "refer",
+            "type": "pubkey"
           }
         ]
       }
@@ -731,6 +761,12 @@
           },
           {
             "name": "winner",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "affiliate_refer",
             "type": {
               "option": "pubkey"
             }

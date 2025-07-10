@@ -13,14 +13,16 @@ import cron from 'node-cron'
 import mongoose from "mongoose";
 import logger from "../utils/logger";
 import Setting from "../models/setting";
+import { ReferralService } from "./referralService";
 
 export class GameService {
+    public referralService: ReferralService;
     public roundService: RoundService;
     public totalBetAmount: number = 0;
     public won: number = 0;
     public chance: number = 0;
     public solPrice: number = 0;
-    public game: boolean = true;
+    public game: boolean = false;
     public rewardRes: boolean = false;
     public feeRes: boolean = false;
     private remainTime: number = 59;
@@ -33,6 +35,7 @@ export class GameService {
 
     constructor(socketServer: Server) {
         this.socketServer = socketServer.of(ESOCKET_NAMESPACE.game);
+        this.referralService = new ReferralService();
         this.roundService = new RoundService();
         this.init();
     }
@@ -374,9 +377,9 @@ export class GameService {
         }
     }
 
-    public gatherFees = async (teamWallet: PublicKey, adminKP: Keypair, round: number) => {
+    public gatherFees = async (teamWallet: PublicKey, adminKP: Keypair, referralPK: PublicKey, round: number) => {
         try {
-            const transferFeesIx = await transferFees(teamWallet, adminKP.publicKey, round);
+            const transferFeesIx = await transferFees(teamWallet, adminKP.publicKey, referralPK, round);
             if (transferFeesIx) {
                 try {
                     const transaction = new Transaction()
@@ -442,15 +445,17 @@ export class GameService {
                     console.log("Winner result:", winnerRes);
 
                     if (winnerRes) {
-                        // Step 6: Process winner
-                        // this.sendWinner(socket, winnerRes.index);
+                        // if (winnerRes.referral) {
+                        //     await this.referralService.updateAffiliate(winnerRes.referral, 0, 1);
+                        // }
+
                         this.socketServer.emit(EGameEvent.WINNER, winnerRes.index);
                         this.chance = winnerRes.deposit / this.totalBetAmount * 100;
                         const user = await User.findOne({ address: winnerRes.winner.toBase58() })
                         if (user && user._id) {
                             console.log("🚀 ~ GameService ~ playGame= ~ user:", user._id)
                             if (!this.feeRes)
-                                this.feeRes = await this.gatherFees(teamWallet, adminKP, this.round);
+                                this.feeRes = await this.gatherFees(teamWallet, adminKP, winnerRes.referral, this.round);
                             if (this.feeRes) {
                                 if (!this.rewardRes)
                                     this.rewardRes = await this.sendReward(adminKP, winnerRes, this.round);

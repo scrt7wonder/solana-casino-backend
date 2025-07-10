@@ -2,12 +2,12 @@
  * Program IDL in camelCase format in order to be used in JS/TS.
  *
  * Note that this is only a type helper and is not the actual IDL. The original
- * IDL can be found at `target/idl/solbet_jackpot_smart_contract.json`.
+ * IDL can be found at `target/idl/solbet_jackpot_contract.json`.
  */
-export type SolbetJackpotSmartContract = {
-  "address": "BjvVkQEhQNzfUHH32giLQQsvT6JHU9MfJV1hYg1V6DGa",
+export type SolbetJackpotContract = {
+  "address": "6enDEXd1jNACrecvEjhAdCAc7Re9hsQYUZbXceH4kEj6",
   "metadata": {
-    "name": "solbetJackpotSmartContract",
+    "name": "solbetJackpotContract",
     "version": "0.1.0",
     "spec": "0.1.0",
     "description": "Created with Anchor"
@@ -351,6 +351,10 @@ export type SolbetJackpotSmartContract = {
           }
         },
         {
+          "name": "affiliateRefer",
+          "writable": true
+        },
+        {
           "name": "user",
           "writable": true,
           "signer": true
@@ -515,6 +519,10 @@ export type SolbetJackpotSmartContract = {
           "writable": true
         },
         {
+          "name": "affiliateRefer",
+          "writable": true
+        },
+        {
           "name": "roundAcc",
           "writable": true,
           "pda": {
@@ -634,11 +642,21 @@ export type SolbetJackpotSmartContract = {
     },
     {
       "code": 6009,
+      "name": "roundIsNotCompleted",
+      "msg": "The Round is not completed"
+    },
+    {
+      "code": 6010,
+      "name": "depositIsSmall",
+      "msg": "Deposite amount is too small"
+    },
+    {
+      "code": 6011,
       "name": "notWinner",
       "msg": "Not Winner"
     },
     {
-      "code": 6010,
+      "code": 6012,
       "name": "winnerNotSet",
       "msg": "Winner not set"
     }
@@ -663,6 +681,10 @@ export type SolbetJackpotSmartContract = {
           },
           {
             "name": "platformFee",
+            "type": "u64"
+          },
+          {
+            "name": "affiliate",
             "type": "u64"
           },
           {
@@ -694,6 +716,10 @@ export type SolbetJackpotSmartContract = {
             "type": "u64"
           },
           {
+            "name": "affiliate",
+            "type": "u64"
+          },
+          {
             "name": "roundDuration",
             "type": "i64"
           }
@@ -712,6 +738,10 @@ export type SolbetJackpotSmartContract = {
           {
             "name": "amount",
             "type": "u64"
+          },
+          {
+            "name": "refer",
+            "type": "pubkey"
           }
         ]
       }
@@ -737,6 +767,12 @@ export type SolbetJackpotSmartContract = {
           },
           {
             "name": "winner",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "affiliateRefer",
             "type": {
               "option": "pubkey"
             }

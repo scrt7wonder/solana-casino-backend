@@ -46,6 +46,7 @@ export const CLUSTER = process.env.CLUSTER || "";
 const TEAM_WALLET = process.env.TEAM_WALLET || "6fqaR9EfVoeWounR9psLmgQ1Jr3y43GbLMHGvWDyGMvH";
 export const teamWallet = new PublicKey(TEAM_WALLET);
 export const PLATFORM_FEE = Number(process.env.PLATFORM_FEE) || 0;
+export const AFFILIATE_FEE = Number(process.env.AFFILIATE_FEE) || 0;
 export const ROUND_DURATION = Number(process.env.ROUND_DURATION) || 0;
 
 export const CONFIG_SEED = Buffer.from("globalconfig");
