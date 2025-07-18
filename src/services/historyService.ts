@@ -1,7 +1,75 @@
+import mongoose from 'mongoose';
 import History from '../models/history';
 import { IDurationHistory, IHistory, IntervalResult } from '../types/history';
 
 export class HistoryService {
+    public async getAffiliate(
+        userId: string,
+        duringDate: string
+    ): Promise<{ ohlcData: IntervalResult[]; duringEarn: number; earn: number }> {
+        try {
+            const userIdObj = new mongoose.Types.ObjectId(userId);
+
+            // Prepare base filter
+            const baseFilter = {
+                user_id: userIdObj,
+                type: "referral" as const,
+            };
+
+            // Check if we need date filtering
+            const datePart = duringDate.split(" ")[1];
+            const useDateFilter = datePart !== "Time";
+
+            // Prepare date filter if needed
+            let dateFilter = {};
+            if (useDateFilter) {
+                const daysAgo = new Date();
+                daysAgo.setDate(daysAgo.getDate() - Number(datePart));
+                dateFilter = { created_at: { $gte: daysAgo } };
+            }
+
+            // Execute all queries in parallel for better performance
+            const [historyData, totalEarnRes, duringEarnRes] = await Promise.all([
+                // Get historical data
+                History.find({
+                    ...baseFilter,
+                    ...(useDateFilter && dateFilter),
+                }).sort({ created_at: 1 }),
+
+                // Get lifetime earnings
+                History.aggregate([
+                    { $match: baseFilter },
+                    { $group: { _id: null, totalEarn: { $sum: "$price" } } },
+                ]),
+
+                // Get period earnings (only if date filtered)
+                useDateFilter
+                    ? History.aggregate([
+                        { $match: { ...baseFilter, ...dateFilter } },
+                        { $group: { _id: null, totalEarn: { $sum: "$price" } } },
+                    ])
+                    : Promise.resolve([]),
+            ]);
+
+            // Process results
+            const totalEarned = totalEarnRes[0]?.totalEarn || 0;
+            const duringEarn = useDateFilter
+                ? duringEarnRes[0]?.totalEarn || 0
+                : totalEarned;
+
+            const ohlcData = this.processIntervals(historyData);
+
+            return {
+                ohlcData,
+                duringEarn,
+                earn: totalEarned,
+            };
+        } catch (error) {
+            console.error('Error in getAffiliate:', error);
+            throw error; // Or return default values
+        }
+    }
+
     public async getHistory(user_id: string, page: number = 1): Promise<{
         data: IHistory[];
         total: number;
@@ -29,112 +97,64 @@ export class HistoryService {
     }
 
     public async getChartData(user_id: string, duringDate: string): Promise<IDurationHistory> {
-        let historyData: IHistory[];
-        let totalDeposit = 0;
-        let totalReward = 0;
-        let biggestWin = 0;
-        let luckiestWin = 0;
-        const date = duringDate.split(" ")[1]
-        if (date == "Time") {
-            historyData = await History.find({ user_id });
-            const depositsRes = await History.aggregate([
-                {
-                    $match: {
-                        user_id,
-                        type: "deposit"
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        totalDeposit: { $sum: "$price" }
-                    }
-                }
-            ])
-            totalDeposit = depositsRes.length > 0 ? depositsRes[0].totalDeposit : 0;
+        try {
+            const date = duringDate.split(" ")[1]
+            const userId = new mongoose.Types.ObjectId(user_id);
+            let filter: any = { user_id: userId };
+            let dateFilter = {};
 
-            const rewardRes = await History.aggregate([
-                {
-                    $match: {
-                        user_id,
-                        type: "reward"
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        totalReward: { $sum: "$price" }
-                    }
-                }
-            ])
-            totalReward = rewardRes.length > 0 ? rewardRes[0].totalDeposit : 0;
+            // Parse date filter if not "Time"
+            if (date !== "Time") {
+                const daysAgo = new Date();
+                daysAgo.setDate(daysAgo.getDate() - Number(date));
+                dateFilter = { created_at: { $gte: daysAgo } };
+                filter = { ...filter, ...dateFilter };
+            }
 
-            const biggestWinRes = await History.find({ user_id, type: "reward" }).sort({ price: -1 }).limit(1);
-            biggestWin = biggestWinRes.length > 0 ? biggestWinRes[0].price : 0;
+            // Get all history data first (more efficient than multiple queries)
+            const historyData = await History.find(filter).sort({ created_at: 1 });
 
-            const luckiest = await History.find({
-                user_id,
-                type: "reward",
-            }).sort({ profit: -1 }).limit(1);
-            luckiestWin = luckiest.length > 0 ? luckiest[0].profit : 0;
-        } else {
-            const daysAgo = new Date();
-            daysAgo.setDate(daysAgo.getDate() - Number(date));
+            // Run aggregations in parallel for better performance
+            const [depositsRes, rewardRes] = await Promise.all([
+                History.aggregate([
+                    { $match: { ...filter, type: "deposit" } },
+                    { $group: { _id: null, totalDeposit: { $sum: "$price" } } }
+                ]),
+                History.aggregate([
+                    { $match: { ...filter, type: "reward" } },
+                    { $group: { _id: null, totalReward: { $sum: "$price" } } }
+                ])
+            ]);
 
-            historyData = await History.find({
-                user_id,
-                create_at: { $gte: daysAgo }
-            }).sort({ created_at: 1 });
-            const depositsRes = await History.aggregate([
-                {
-                    $match: {
-                        user_id,
-                        type: "deposit",
-                        create_at: { $gte: daysAgo }
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        totalDeposit: { $sum: "$price" }
-                    }
-                }
-            ])
-            totalDeposit = depositsRes.length > 0 ? depositsRes[0].totalDeposit : 0;
+            // Get biggest wins in single query
+            const [biggestWinRes, luckiestWinRes] = await Promise.all([
+                History.find({ ...filter, type: "reward" })
+                    .sort({ price: -1 })
+                    .limit(1),
+                History.find({ ...filter, type: "reward" })
+                    .sort({ profit: -1 })
+                    .limit(1)
+            ]);
 
-            const rewardRes = await History.aggregate([
-                {
-                    $match: {
-                        user_id,
-                        type: "reward",
-                        create_at: { $gte: daysAgo }
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        totalReward: { $sum: "$price" }
-                    }
-                }
-            ])
-            totalReward = rewardRes.length > 0 ? rewardRes[0].totalDeposit : 0;
+            // Process results
+            const tDeposit = depositsRes[0]?.totalDeposit || 0;
+            const tReward = rewardRes[0]?.totalReward || 0;
+            const biggestWin = biggestWinRes[0]?.price || 0;
+            const luckiestWin = luckiestWinRes[0]?.profit || 0;
 
-            const biggestWinRes = await History.find({
-                user_id,
-                type: "reward",
-                create_at: { $gte: daysAgo }
-            }).sort({ price: -1 }).limit(1);
-            biggestWin = biggestWinRes.length > 0 ? biggestWinRes[0].price : 0;
+            const ohlcData = this.processIntervals(historyData);
 
-            const luckiest = await History.find({
-                user_id,
-                type: "reward",
-                create_at: { $gte: daysAgo }
-            }).sort({ profit: -1 }).limit(1);
-            luckiestWin = luckiest.length > 0 ? luckiest[0].profit : 0;
+            return {
+                ohlcData,
+                tDeposit,
+                tReward,
+                biggestWin,
+                luckiestWin
+            };
+        } catch (error) {
+            console.error("Error in getChartData:", error);
+            throw error; // Or return default values
         }
-        const ohlcData = this.processIntervals(historyData);
-        return { ohlcData, totalDeposit, totalReward, biggestWin, luckiestWin }
     }
 
     private processIntervals(data: IHistory[]): IntervalResult[] {

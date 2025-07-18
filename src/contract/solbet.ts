@@ -199,7 +199,7 @@ export const fetchWinner = async (round: number): Promise<{ winner: PublicKey; d
   }
 }
 
-export const claimReward = async (adminPk: PublicKey, winnerPk: PublicKey, round: number) => {
+export const claimReward = async (adminPk: PublicKey, winnerPk: PublicKey, affiliateRefer: PublicKey, round: number) => {
   try {
     // Derive round PDA
     const [roundPda] = PublicKey.findProgramAddressSync(
@@ -208,14 +208,16 @@ export const claimReward = async (adminPk: PublicKey, winnerPk: PublicKey, round
     );
 
     const claimRewardIx = await program.methods
-      .claimReward(new BN(round))
+      .reward(new BN(round))
       .accountsStrict({
         admin: adminPk,
         winner: winnerPk,
         config: configPda,
         roundAcc: roundPda,
         systemProgram: SystemProgram.programId,
-        vault: vaultPda
+        vault: vaultPda,
+        affiliateRefer,
+        teamWallet: teamWallet
       })
       .instruction();
     return claimRewardIx;
@@ -224,7 +226,7 @@ export const claimReward = async (adminPk: PublicKey, winnerPk: PublicKey, round
   }
 }
 
-export const getRewardAmount = async (round: number): Promise<number> => {
+export const getTotalBetAmount = async (round: number): Promise<number> => {
   console.log("🚀 ~ fetchWinner ~ round:", round)
   // Derive round PDA
   const [roundPda] = PublicKey.findProgramAddressSync(
@@ -233,31 +235,8 @@ export const getRewardAmount = async (round: number): Promise<number> => {
   );
 
   const currentRound = await program.account.gameRound.fetch(roundPda);
+  const totalBetAmount = Number(currentRound.totalAmount) / LAMPORTS_PER_SOL;
   console.log("🚀 ~ getRewardAmount ~ currentRound.totalAmount:", currentRound.totalAmount)
-  const reward = Number(currentRound.totalAmount) * (10000 - PLATFORM_FEE) / 10000;
-  console.log("🚀 ~ getRewardAmount ~ reward:", reward)
-  return reward
-}
-
-export const transferFees = async (teamWalPk: PublicKey, adminPk: PublicKey, referralPK: PublicKey, round: number) => {
-  // Derive round PDA
-  const [roundPda] = PublicKey.findProgramAddressSync(
-    [ROUND_SEED, new BN(round).toArrayLike(Buffer, "le", 8)],
-    program.programId
-  );
-
-  const transferFeesIx = await program.methods
-    .transferFees(new BN(round))
-    .accountsStrict({
-      admin: adminPk,
-      teamWallet: teamWalPk,
-      config: configPda,
-      roundAcc: roundPda,
-      systemProgram: SystemProgram.programId,
-      affiliateRefer: referralPK,
-      vault: vaultPda
-    })
-    .instruction();
-  return transferFeesIx
+  return totalBetAmount
 }
 

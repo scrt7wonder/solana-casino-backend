@@ -40,6 +40,11 @@ const UserSchema = new Schema<IUser>({
         type: Boolean,
         required: true,
     },
+    online: {
+        type: Boolean,
+        required: false,
+        default: true
+    },
     created_at: {
         type: Date,
         default: Date.now

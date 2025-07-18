@@ -9,6 +9,7 @@ export interface IUser extends Document {
     referral: string;
     deposit_state: boolean,
     invite_link: string;
+    online: boolean;
     created_at: Date;
     updated_at: Date;
 }

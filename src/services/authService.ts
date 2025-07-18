@@ -6,7 +6,7 @@ import { IauthUserDto } from '../types/auth.dto';
 import { IUser } from '../types/user';
 
 export class AuthService {
-    public async auth(userData: IauthUserDto): Promise<{ token: string, user: IUser }> {
+    public async auth(userData: IauthUserDto): Promise<{ token: string, user: IUser, number: number }> {
         const { username, address, email, referral } = userData;
         const saveData: any = {
             username,
@@ -47,9 +47,12 @@ export class AuthService {
         const user = new User(saveData);
         await user.save();
 
+        const users = await User.find({ online: true });
+        const number = users.length;
+
         // Create and return JWT
         const token = this.generateToken(user._id.toString());
-        return { token, user };
+        return { token, user, number };
     }
 
     public async updateAuth(id: string, updateData: any): Promise<IUser> {
@@ -60,16 +63,30 @@ export class AuthService {
         )
     }
 
-    public async check(address: string): Promise<{ token: string, user: IUser } | boolean> {
+    public async check(address: string): Promise<{ token: string, user: IUser, number: number } | boolean> {
         const user = await User.findOne({ address });
         if (!user) {
             return false;
         } else {
             // Create and return JWT
             const token = this.generateToken(user._id.toString());
+            const users = await User.find({ online: true });
+            const number = users.length;
 
-            return { token, user }
+            return { token, user, number }
         }
+    }
+
+    public async getOnlineUsers(id: string, updateData: any): Promise<{ user: IUser, number: number }> {
+        const user = await User.findOneAndUpdate(
+            { _id: id },
+            { $set: updateData },
+            { new: true, upsert: true }
+        ) as IUser;
+
+        const users = await User.find({ online: true });
+        const number = users.length;
+        return { user, number }
     }
 
     private generateToken(userId: string): string {

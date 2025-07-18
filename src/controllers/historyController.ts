@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { HistoryService } from '../services/historyService';
+import mongoose from 'mongoose';
 
 export class HistoryController {
     private historyService: HistoryService;

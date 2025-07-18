@@ -21,8 +21,8 @@ export interface IntervalResult {
 
 export interface IDurationHistory {
     ohlcData: IntervalResult[];
-    totalDeposit: number;
-    totalReward: number;
+    tDeposit: number;
+    tReward: number;
     biggestWin: number;
     luckiestWin: number;
 }
