@@ -1,27 +1,27 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
-import { claimReward, createGame, depositMonitor, fetchIsExpired, fetchRound, fetchWinner, getRewardAmount, initialize, setWinner, transferFees } from "../contract/solbet";
-import { adminKP, connection, teamWallet } from "../config/constants";
+import { claimReward, createGame, depositMonitor, fetchIsExpired, fetchRound, fetchWinner, getTotalBetAmount, initialize, setWinner } from "../contract/solbet";
+import { adminKP, AFFILIATE_FEE, connection, PLATFORM_FEE, teamWallet } from "../config/constants";
 import { Namespace, Server, Socket } from "socket.io";
 import { EGameEvent, ESOCKET_NAMESPACE } from "../types/socket";
 import { IHistory } from "../types/history";
 import History from "../models/history";
 import User from "../models/user";
-import { IUser } from "../types/user";
 import { RoundService } from "./roundService";
 import { getSolPrice, sleep } from "../utils/utils";
 import cron from 'node-cron'
 import mongoose from "mongoose";
 import logger from "../utils/logger";
 import Setting from "../models/setting";
+import { ReferralService } from "./referralService";
 
 export class GameService {
+    public referralService: ReferralService;
     public roundService: RoundService;
     public totalBetAmount: number = 0;
     public won: number = 0;
-    public chance: number = 0;
     public solPrice: number = 0;
     public game: boolean = false;
-    public rewardRes: boolean = true;
+    public rewardRes: boolean = false;
     public feeRes: boolean = false;
     private remainTime: number = 59;
     private round: number = 1;
@@ -33,17 +33,18 @@ export class GameService {
 
     constructor(socketServer: Server) {
         this.socketServer = socketServer.of(ESOCKET_NAMESPACE.game);
+        this.referralService = new ReferralService();
         this.roundService = new RoundService();
         this.init();
-        this.setupConnection();
     }
 
     private async init() {
+        await this.initialGame(adminKP);
         const setting = await Setting.findOne({ name: "solbet" });
         if (setting) {
             this.round = setting.round;
             this.totalAmount = setting.totalAmount;
-            if (this.round > 0) {
+            if (this.round > 1) {
                 const isExpired = await fetchIsExpired(this.round);
                 console.log("🚀 ~ GameService ~ init ~ isExpired:", isExpired)
                 if (isExpired) {
@@ -59,14 +60,14 @@ export class GameService {
             await newData.save();
             this.round = newData.round;
         }
-        await this.initialGame(adminKP);
+        this.playGame(adminKP, teamWallet)
+        this.setupConnection();
     }
 
     private async setupConnection() {
         this.socketServer.on('connection', (socket: Socket) => {
             // Initialize game on first connection
             if (this.socketServer.sockets.size === 1) {
-                this.playGame(socket, adminKP, teamWallet)
                 this.sendSolPrice(socket);
             }
 
@@ -163,7 +164,7 @@ export class GameService {
                 const totalBetAmount = aggregationResult[0]?.totalPrice || 0;
                 this.totalBetAmount = totalBetAmount;
 
-                const players = await History.find({ round: this.round })
+                const players = await History.find({ round: this.round, type: "deposit" })
                     .populate({
                         path: 'user_id',
                         select: 'username avatar email created_at'
@@ -224,13 +225,10 @@ export class GameService {
         socket.emit(EGameEvent.DURATION_STATE, this.monitorRes);
     }
 
-    private async sendWinner(socket: Socket, index: number) {
-        socket.emit(EGameEvent.WINNER, index);
-    }
-
     public initialGame = async (adminKP: Keypair) => {
         try {
             const initialIx = await initialize(adminKP.publicKey);
+            console.log("🚀 ~ GameService ~ initialGame= ~ initialIx:", initialIx)
 
             if (initialIx) {
                 const transaction = new Transaction()
@@ -257,6 +255,7 @@ export class GameService {
     public newGame = async (adminKP: Keypair, round: number) => {
         try {
             const createGameIx = await createGame(adminKP.publicKey, round);
+            console.log("🚀 ~ GameService ~ newGame= ~ createGameIx:", createGameIx)
             if (createGameIx) {
                 const transaction = new Transaction()
                     .add(createGameIx)
@@ -274,14 +273,15 @@ export class GameService {
             }
             return false;
         } catch (error) {
+            console.log("🚀 ~ GameService ~ newGame= ~ error:", error)
             return false;
         }
     }
 
     public getWinner = async (adminKP: Keypair, round: number) => {
-        try {
-            const setWinnerIx = await setWinner(adminKP.publicKey, round);
-            if (setWinnerIx) {
+        const setWinnerIx = await setWinner(adminKP.publicKey, round);
+        if (setWinnerIx) {
+            try {
                 const transaction = new Transaction()
                     .add(setWinnerIx)
 
@@ -296,93 +296,144 @@ export class GameService {
 
                 const winner = await fetchWinner(round);
                 return winner
+            } catch (error) {
+                return null
             }
+        } else {
             return null;
-        } catch (error) {
-            return null
         }
     }
 
-    public sendReward = async (adminKP: Keypair, winner: PublicKey, round: number) => {
+    public sendReward = async (
+        adminKP: Keypair,
+        winnerData: {
+            winner: PublicKey;
+            deposit: number;
+            index: number;
+            referral: PublicKey;
+        },
+        round: number,
+        maxRetries = 3,
+        retryDelay = 1000
+    ): Promise<boolean> => {
         try {
-            const claimRewardIx = await claimReward(adminKP.publicKey, winner, round);
-            if (claimRewardIx) {
-                const transaction = new Transaction()
-                    .add(claimRewardIx)
+            const claimRewardIx = await claimReward(adminKP.publicKey, winnerData.winner, winnerData.referral, round);
 
-                // Get recent blockhash
-                const { blockhash } = await connection.getRecentBlockhash();
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = adminKP.publicKey;
+            if (!claimRewardIx) {
+                console.log("Claim reward instruction creation failed.");
+                return false;
+            }
 
-                // Send transaction and await for signature
-                const signature = await sendAndConfirmTransaction(connection, transaction, [adminKP]);
-                console.log("🚀 ~ GameService ~ sendReward= ~ signature:", signature)
-                if (signature) {
-                    const reward = await getRewardAmount(round);
+            const transaction = new Transaction().add(claimRewardIx);
+            const { blockhash } = await connection.getRecentBlockhash();
+            transaction.recentBlockhash = blockhash;
+            transaction.feePayer = adminKP.publicKey;
+
+            const signature = await sendAndConfirmTransaction(
+                connection,
+                transaction,
+                [adminKP],
+                { skipPreflight: true }
+            );
+
+            if (!signature) {
+                console.log("Transaction failed to send.");
+                return false;
+            }
+
+            let attempts = 0;
+            while (attempts < maxRetries) {
+                try {
+                    attempts++;
+                    console.log(`Processing reward (Attempt ${attempts}/${maxRetries})`);
+
+                    const totalBetAmount = await getTotalBetAmount(round);
+                    const platformFee = totalBetAmount * PLATFORM_FEE / 10000;
+                    const affiliateFee = totalBetAmount * AFFILIATE_FEE / 10000;
+                    const reward = totalBetAmount - platformFee;
+
                     this.won = reward / LAMPORTS_PER_SOL;
-                    const user: IUser | null = await User.findOne({ address: winner.toBase58() })
-                    if (user) {
-                        const saveData = {
+                    const chance = Number(winnerData.deposit) / totalBetAmount * 100;
+                    console.log("🚀 ~ GameService ~ winnerData.deposit:", Number(winnerData.deposit))
+                    console.log("🚀 ~ GameService ~ totalBetAmount:", Number(totalBetAmount))
+                    console.log("🚀 ~ GameService ~ chance:", chance)
+
+                    const user = await User.findOne({ address: winnerData.winner.toBase58() });
+                    if (!user) {
+                        throw new Error("User not found");
+                    }
+
+                    // Prepare history records
+                    const historyRecords: IHistory[] = [
+                        new History({
                             sig: signature,
-                            price: reward / LAMPORTS_PER_SOL,
+                            price: reward,
                             type: "reward",
                             status: "success",
                             create_at: new Date(),
                             round,
+                            profit: reward / winnerData.deposit * 100,
                             user_id: user._id
-                        }
-                        const historyData = new History(saveData);
-                        await historyData.save();
-                        return true;
-                    } else {
-                        console.log("Can not find user!");
-                        return false;
+                        })
+                    ];
+
+                    if (winnerData.winner.toBase58() !== winnerData.referral.toBase58()) {
+                        historyRecords.push(
+                            new History({
+                                sig: signature,
+                                price: affiliateFee,
+                                type: "referral",
+                                status: "success",
+                                create_at: new Date(),
+                                round,
+                                profit: (affiliateFee / platformFee) * 100,
+                                user_id: user._id
+                            })
+                        );
+                    }
+
+                    // Save all records in parallel
+                    await Promise.all(historyRecords.map(record => record.save()));
+
+                    // Save winner information
+                    await this.roundService.saveWinner(
+                        round,
+                        reward,
+                        chance,
+                        user._id.toString()
+                    );
+
+                    return true;
+
+                } catch (error) {
+                    console.error(`Attempt ${attempts} failed:`, error);
+                    if (attempts < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
                     }
                 }
-                return false;
             }
+
+            console.log(`Failed after ${maxRetries} attempts`);
             return false;
+
         } catch (error) {
+            console.error("Error in sendReward:", error);
             return false;
         }
-    }
+    };
 
-    public gatherFees = async (teamWallet: PublicKey, adminKP: Keypair, round: number) => {
-        try {
-            const transferFeesIx = await transferFees(teamWallet, adminKP.publicKey, round);
-            if (transferFeesIx) {
-                const transaction = new Transaction()
-                    .add(transferFeesIx)
-
-                // Get recent blockhash
-                const { blockhash } = await connection.getRecentBlockhash();
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = adminKP.publicKey;
-
-                // Send transaction and await for signature
-                const signature = await sendAndConfirmTransaction(connection, transaction, [adminKP]);
-                console.log("🚀 ~ GameService ~ gatherFees= ~ signature:", signature)
-                return true;
-            }
-            return false;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    public playGame = async (socket: Socket, adminKP: Keypair, teamWallet: PublicKey) => {
+    public playGame = async (adminKP: Keypair, teamWallet: PublicKey) => {
         try {
             while (true) {
                 console.log("🚀 ~ GameService ~ playGame= ~ this.round:", this.round)
                 console.log("🚀 ~ GameService ~ playGame= ~ this.game:", this.game)
                 // Step 1: Start new game round
                 if (!this.game) {
-                    const res = await this.newGame(adminKP, this.round);
-                    this.game = res;
+                    this.game = await this.newGame(adminKP, this.round);
                 }
+                console.log("🚀 ~ GameService ~ playGame= ~ this.game1:", this.game)
                 if (this.game) {
-                    this.sendUpdateRound(socket);
+                    this.socketServer.emit(EGameEvent.UPDATE_ROUND, this.round);
 
                     // Step 2: Check deposit monitor status
                     this.monitorRes = await depositMonitor(this.round);
@@ -393,7 +444,7 @@ export class GameService {
 
                     // Step 3: If deposits are ready, start/reset timer
                     if (this.monitorRes && this.remainTime == 59) {
-                        this.sendDuration(socket);
+                        this.socketServer.emit(EGameEvent.DURATION_STATE, this.monitorRes);
                         this.isExpired = false;
                         this.startTimer(); // Start countdown
                     }
@@ -409,40 +460,21 @@ export class GameService {
                     console.log("Winner result:", winnerRes);
 
                     if (winnerRes) {
-                        // Step 6: Process winner
-                        // this.sendWinner(socket, winnerRes.index);
                         this.socketServer.emit(EGameEvent.WINNER, winnerRes.index);
-                        this.chance = winnerRes.deposit / this.totalBetAmount * 100;
-                        const user = await User.findOne({ address: winnerRes.winner.toBase58() })
-                        if (user && user._id) {
-                            if (!this.rewardRes)
-                                this.rewardRes = await this.sendReward(adminKP, winnerRes.winner, this.round);
-                            if (this.rewardRes) {
-                                if (!this.feeRes)
-                                    this.feeRes = await this.gatherFees(teamWallet, adminKP, this.round);
-                                if (this.feeRes) {
-                                    await this.roundService.saveWinner(
-                                        this.round,
-                                        this.won,
-                                        this.chance,
-                                        user._id.toString()
-                                    );
+                        if (!this.rewardRes)
+                            this.rewardRes = await this.sendReward(adminKP, winnerRes, this.round);
+                        if (this.rewardRes) {
+                            await this.getRound();
+                            // Step 7: Prepare next round
+                            this.monitorRes = false;
+                            this.isExpired = false;
+                            this.remainTime = 59;
+                            this.game = false;
+                            this.rewardRes = false;
+                            this.feeRes = false;
 
-                                    await this.getRound();
-                                    // Step 7: Prepare next round
-                                    this.monitorRes = false;
-                                    this.isExpired = false;
-                                    this.remainTime = 59;
-                                    this.game = false;
-                                    this.rewardRes = false;
-                                    this.feeRes = false;
-
-                                    // Notify clients of new round
-                                    // this.sendUpdateRound(socket);
-                                    console.log("🚀 ~ GameService ~ playGame= ~ this.round:", this.round)
-                                    this.socketServer.emit(EGameEvent.UPDATE_ROUND, this.round);
-                                }
-                            }
+                            console.log("🚀 ~ GameService ~ playGame= ~ this.round:", this.round)
+                            this.socketServer.emit(EGameEvent.UPDATE_ROUND, this.round);
                         }
                     }
                 }

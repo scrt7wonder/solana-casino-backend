@@ -7,6 +7,7 @@ export interface IHistory extends Document {
     status: string;
     create_at: Date;
     round: number;
+    profit: number;
     user_id: ObjectId;
 }
 
@@ -16,4 +17,12 @@ export interface IntervalResult {
     high: number;
     low: number;
     time: number;
+}
+
+export interface IDurationHistory {
+    ohlcData: IntervalResult[];
+    tDeposit: number;
+    tReward: number;
+    biggestWin: number;
+    luckiestWin: number;
 }

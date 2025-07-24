@@ -6,8 +6,10 @@ export interface IUser extends Document {
     avatar: string;
     address: string;
     email: string;
-    refferal: string;
+    referral: string;
+    deposit_state: boolean,
     invite_link: string;
+    online: boolean;
     created_at: Date;
     updated_at: Date;
 }

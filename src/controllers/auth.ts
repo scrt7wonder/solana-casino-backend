@@ -42,6 +42,22 @@ export class AuthController {
         }
     };
 
+    public getOnlineUsers = async (req: Request, res: Response): Promise<Response> => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        try {
+            const {id, ...updateData} = req.body;
+            console.log("🚀 ~ AuthController ~ auth= ~ userData:", updateData)
+            const data = await this.authService.getOnlineUsers(id, updateData);
+            return res.status(201).json(data);
+        } catch (error) {
+            return res.status(400).json({ message: (error as Error).message });
+        }
+    };
+
     public check = async (req: Request, res: Response): Promise<Response> => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -50,8 +66,8 @@ export class AuthController {
 
         try {
             const { address } = req.params;
-            const user = await this.authService.check(address);
-            return res.status(201).json(user);
+            const data = await this.authService.check(address);
+            return res.status(201).json(data);
         } catch (error) {
             return res.status(400).json({ message: (error as Error).message });
         }

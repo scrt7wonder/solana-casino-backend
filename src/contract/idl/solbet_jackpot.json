@@ -1,121 +1,12 @@
 {
-  "address": "HShDEUVwFLCfqgQQ6j73TagPjo7mSuyGHG5ajzVeV2T1",
+  "address": "8XqxVJvF33j9hXXW9FniWXvM5cB9wkcTTpoMJEaz2zN6",
   "metadata": {
-    "name": "solbet_jackpot_smart_contract",
+    "name": "solbet_jackpot_contract",
     "version": "0.1.0",
     "spec": "0.1.0",
     "description": "Created with Anchor"
   },
   "instructions": [
-    {
-      "name": "claim_reward",
-      "discriminator": [
-        149,
-        95,
-        181,
-        242,
-        94,
-        90,
-        158,
-        162
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "round_acc",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "round"
-              }
-            ]
-          }
-        },
-        {
-          "name": "admin",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "winner",
-          "writable": true
-        },
-        {
-          "name": "vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  108,
-                  101,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "roundIndex",
-          "type": "u64"
-        }
-      ]
-    },
     {
       "name": "create_game",
       "discriminator": [
@@ -192,7 +83,7 @@
       ],
       "args": [
         {
-          "name": "roundIndex",
+          "name": "round_index",
           "type": "u64"
         }
       ]
@@ -345,6 +236,10 @@
           }
         },
         {
+          "name": "affiliate_refer",
+          "writable": true
+        },
+        {
           "name": "user",
           "writable": true,
           "signer": true
@@ -356,11 +251,128 @@
       ],
       "args": [
         {
-          "name": "roundIndex",
+          "name": "round_index",
           "type": "u64"
         },
         {
           "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "reward",
+      "discriminator": [
+        1,
+        189,
+        15,
+        193,
+        243,
+        42,
+        133,
+        82
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "round_acc",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "team_wallet",
+          "writable": true
+        },
+        {
+          "name": "affiliate_refer",
+          "writable": true
+        },
+        {
+          "name": "winner",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  108,
+                  101,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "round_index",
           "type": "u64"
         }
       ]
@@ -437,116 +449,7 @@
       ],
       "args": [
         {
-          "name": "roundIndex",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "transfer_fees",
-      "discriminator": [
-        103,
-        60,
-        61,
-        79,
-        56,
-        61,
-        76,
-        49
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  108,
-                  101,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "team_wallet",
-          "writable": true
-        },
-        {
-          "name": "round_acc",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "round"
-              }
-            ]
-          }
-        },
-        {
-          "name": "admin",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "roundIndex",
+          "name": "round_index",
           "type": "u64"
         }
       ]
@@ -628,11 +531,21 @@
     },
     {
       "code": 6009,
+      "name": "RoundIsNotCompleted",
+      "msg": "The Round is not completed"
+    },
+    {
+      "code": 6010,
+      "name": "DepositIsSmall",
+      "msg": "Deposite amount is too small"
+    },
+    {
+      "code": 6011,
       "name": "NotWinner",
       "msg": "Not Winner"
     },
     {
-      "code": 6010,
+      "code": 6012,
       "name": "WinnerNotSet",
       "msg": "Winner not set"
     }
@@ -657,6 +570,10 @@
           },
           {
             "name": "platform_fee",
+            "type": "u64"
+          },
+          {
+            "name": "affiliate",
             "type": "u64"
           },
           {
@@ -688,6 +605,10 @@
             "type": "u64"
           },
           {
+            "name": "affiliate",
+            "type": "u64"
+          },
+          {
             "name": "round_duration",
             "type": "i64"
           }
@@ -706,6 +627,10 @@
           {
             "name": "amount",
             "type": "u64"
+          },
+          {
+            "name": "refer",
+            "type": "pubkey"
           }
         ]
       }
@@ -731,6 +656,12 @@
           },
           {
             "name": "winner",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "affiliate_refer",
             "type": {
               "option": "pubkey"
             }

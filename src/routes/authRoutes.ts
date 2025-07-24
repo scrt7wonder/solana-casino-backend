@@ -45,6 +45,24 @@ router.post(
     }
 );
 
+// @route   POST /api/auth/online
+// @desc    get number of users
+// @access  Public
+
+router.post(
+    '/online',
+    [
+        check('id', 'id is required').not().isEmpty(),
+    ],
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            await authController.getOnlineUsers(req, res);
+        } catch (err) {
+            next(err);
+        }
+    }
+);
+
 // @route   GET /api/auth/check/:address
 // @desc    check user
 // @access  Public

@@ -19,7 +19,6 @@ export class SocketController {
 
     private createSocket() {
         try {
-            console.log("chat")
             new ChatService(this.io);
             new GameService(this.io);
         } catch (error) {

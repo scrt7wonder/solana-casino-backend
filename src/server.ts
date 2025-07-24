@@ -4,9 +4,9 @@ import { PORT } from './config/constants';
 import { connectDB } from './config/db';
 import { SocketController } from './controllers/socketController';
 
-const start = () => {
+const start = async () => {
     // Connect to the MongoDB database
-    connectDB();
+    await connectDB();
 
     const server = http.createServer(app);
 

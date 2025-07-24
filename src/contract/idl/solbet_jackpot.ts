@@ -4,124 +4,15 @@
  * Note that this is only a type helper and is not the actual IDL. The original
  * IDL can be found at `target/idl/solbet_jackpot_smart_contract.json`.
  */
-export type SolbetJackpotSmartContract = {
-  "address": "HShDEUVwFLCfqgQQ6j73TagPjo7mSuyGHG5ajzVeV2T1",
+export type SolbetJackpotContract = {
+  "address": "8XqxVJvF33j9hXXW9FniWXvM5cB9wkcTTpoMJEaz2zN6",
   "metadata": {
-    "name": "solbetJackpotSmartContract",
+    "name": "SolbetJackpotContract",
     "version": "0.1.0",
     "spec": "0.1.0",
     "description": "Created with Anchor"
   },
   "instructions": [
-    {
-      "name": "claimReward",
-      "discriminator": [
-        149,
-        95,
-        181,
-        242,
-        94,
-        90,
-        158,
-        162
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "roundAcc",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "round"
-              }
-            ]
-          }
-        },
-        {
-          "name": "admin",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "winner",
-          "writable": true
-        },
-        {
-          "name": "vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  108,
-                  101,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "roundIndex",
-          "type": "u64"
-        }
-      ]
-    },
     {
       "name": "createGame",
       "discriminator": [
@@ -351,6 +242,10 @@ export type SolbetJackpotSmartContract = {
           }
         },
         {
+          "name": "affiliateRefer",
+          "writable": true
+        },
+        {
           "name": "user",
           "writable": true,
           "signer": true
@@ -367,6 +262,123 @@ export type SolbetJackpotSmartContract = {
         },
         {
           "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "reward",
+      "discriminator": [
+        1,
+        189,
+        15,
+        193,
+        243,
+        42,
+        133,
+        82
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "roundAcc",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "teamWallet",
+          "writable": true
+        },
+        {
+          "name": "affiliateRefer",
+          "writable": true
+        },
+        {
+          "name": "winner",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  108,
+                  101,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "roundIndex",
           "type": "u64"
         }
       ]
@@ -439,115 +451,6 @@ export type SolbetJackpotSmartContract = {
           "name": "admin",
           "writable": true,
           "signer": true
-        }
-      ],
-      "args": [
-        {
-          "name": "roundIndex",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "transferFees",
-      "discriminator": [
-        103,
-        60,
-        61,
-        79,
-        56,
-        61,
-        76,
-        49
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  108,
-                  101,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "teamWallet",
-          "writable": true
-        },
-        {
-          "name": "roundAcc",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "round"
-              }
-            ]
-          }
-        },
-        {
-          "name": "admin",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -634,11 +537,21 @@ export type SolbetJackpotSmartContract = {
     },
     {
       "code": 6009,
+      "name": "roundIsNotCompleted",
+      "msg": "The Round is not completed"
+    },
+    {
+      "code": 6010,
+      "name": "depositIsSmall",
+      "msg": "Deposite amount is too small"
+    },
+    {
+      "code": 6011,
       "name": "notWinner",
       "msg": "Not Winner"
     },
     {
-      "code": 6010,
+      "code": 6012,
       "name": "winnerNotSet",
       "msg": "Winner not set"
     }
@@ -663,6 +576,10 @@ export type SolbetJackpotSmartContract = {
           },
           {
             "name": "platformFee",
+            "type": "u64"
+          },
+          {
+            "name": "affiliate",
             "type": "u64"
           },
           {
@@ -694,6 +611,10 @@ export type SolbetJackpotSmartContract = {
             "type": "u64"
           },
           {
+            "name": "affiliate",
+            "type": "u64"
+          },
+          {
             "name": "roundDuration",
             "type": "i64"
           }
@@ -712,6 +633,10 @@ export type SolbetJackpotSmartContract = {
           {
             "name": "amount",
             "type": "u64"
+          },
+          {
+            "name": "refer",
+            "type": "pubkey"
           }
         ]
       }
@@ -737,6 +662,12 @@ export type SolbetJackpotSmartContract = {
           },
           {
             "name": "winner",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "affiliateRefer",
             "type": {
               "option": "pubkey"
             }

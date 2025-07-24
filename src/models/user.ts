@@ -30,10 +30,20 @@ const UserSchema = new Schema<IUser>({
         unique: true,
         trim: true
     },
-    refferal: {
+    referral: {
         type: String,
         required: false,
-        trim: true
+        trim: true,
+        default: ""
+    },
+    deposit_state: {
+        type: Boolean,
+        required: true,
+    },
+    online: {
+        type: Boolean,
+        required: false,
+        default: true
     },
     created_at: {
         type: Date,

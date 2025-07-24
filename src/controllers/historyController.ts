@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { HistoryService } from '../services/historyService';
+import mongoose from 'mongoose';
 
 export class HistoryController {
     private historyService: HistoryService;
@@ -21,8 +22,8 @@ export class HistoryController {
     public getChartData = async (req: Request, res: Response): Promise<Response> => {
         try {
             const { id, date } = req.body;
-            const ohlc = await this.historyService.getChartData(id, date);
-            return res.json(ohlc);
+            const durationData = await this.historyService.getChartData(id, date);
+            return res.json(durationData);
         } catch (error) {
             return res.status(500).json({ message: 'Server error' });
         }
