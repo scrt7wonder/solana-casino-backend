@@ -23,11 +23,7 @@
 - [Contributing](#contributing)
 - [License](#license)
 
-### Stay Connected
-| Platform | Link | Purpose |
-|----------|------|---------|
-| Telegram | [t.me/FroganBee.sol](https://t.me/froganbee_sol) | Announcements & Support |
-| X | [x.com/0xFortuneRust](https://x.com/0xFortuneRust) | News & Updates |
+
 
 ## 🎯 Overview
 
